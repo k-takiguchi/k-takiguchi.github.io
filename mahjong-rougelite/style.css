@@ -56,6 +56,15 @@ html, body {
 .yokai .yname { font-size: 9.5px; font-weight: 800; color: var(--purple); margin-top: 2px; }
 .yokai .rar { position: absolute; top: -6px; right: -4px; font-size: 9px; color: var(--gold); }
 .yokai-empty { color: #b6ae98; font-size: 12px; padding: 6px; }
+.yokai { cursor: pointer; }
+/* 所持妖怪の効果一覧（タップで開閉・スマホ対応） */
+.yokai-panel { width: 100%; margin-top: 6px; border-top: 1.5px dashed #d9cff0; padding-top: 6px; }
+.yokai-detail { display: flex; align-items: baseline; gap: 6px; font-size: 11.5px; line-height: 1.7; color: #4a4638; }
+.yokai-detail .face { font-size: 14px; }
+.yokai-detail b { color: var(--purple); white-space: nowrap; }
+.yokai-detail .rar-inline { color: var(--gold); font-size: 9px; white-space: nowrap; }
+.yokai-detail .ydesc { color: #6a6555; }
+.yokai-panel-hint { text-align: center; font-size: 9px; color: #b6ae98; margin-top: 4px; }
 .slots { margin-left: auto; font-size: 11px; color: #9a927c; font-weight: 700; }
 
 /* ---- 先読み ---- */
