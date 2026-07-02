@@ -51,6 +51,16 @@
     kanadama:     { name: "金霊", face: "💴", rarity: 2, price: 6, desc: "ラウンドクリアの小判報酬 ×2", flags: { rewardMult: 2 } },
     fukusuke:     { name: "福助", face: "🎎", rarity: 1, price: 4, desc: "ラウンド開始時 小判+3", flags: { kobanOnRound: 3 } },
     senrigan:     { name: "千里眼", face: "🔮", rarity: 2, price: 6, desc: "待ち牌の残り枚数に、まだ山に出ていない捨て牌分も含めて見える", flags: { countWaits: true } },
+    // ---- ★D30 メダル解放妖怪（妖怪茶屋の図鑑で解放 → minStage以降のショップに出現）----
+    // 翻インフレ特化: D27の数え役満階段(16翻=5倍満/18翻=6倍満/+2翻毎+8000)を活かし、無限夜行の深部を攻略可能にする。
+    onibi:        { name: "鬼火", face: "🔥", rarity: 2, price: 6, desc: "字牌の刻子1つにつき +1翻", unlock: { cost: 12, minStage: 4 } },
+    nureonna:     { name: "濡女", face: "🐍", rarity: 2, price: 6, desc: "刻子の無いアガリ(全て順子)で +2翻", unlock: { cost: 12, minStage: 4 } },
+    yosuzume:     { name: "夜雀", face: "🐦", rarity: 2, price: 6, desc: "鳴いている手のアガリで +2翻", unlock: { cost: 15, minStage: 5 } },
+    ungaikyo:     { name: "雲外鏡", face: "🪞", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +3翻", unlock: { cost: 20, minStage: 6 } },
+    shutendoji:   { name: "酒呑童子", face: "🍶", rarity: 3, price: 8, desc: "5翻以上のアガリで さらに+2翻", unlock: { cost: 25, minStage: 6 } },
+    umibozu:      { name: "海坊主", face: "🌊", rarity: 3, price: 8, desc: "清一色のアガリで さらに+3翻", unlock: { cost: 25, minStage: 8 } },
+    hakutaku:     { name: "白澤", face: "🐂", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 30, minStage: 9 } },
+    ryujin:       { name: "龍神", face: "🐲", rarity: 3, price: 10, desc: "13翻以上のアガリで さらに+4翻", unlock: { cost: 40, minStage: 10 } },
   };
   const YOKAI_IDS = Object.keys(YOKAI);
   function yokaiFlag(owned, key, reducer) {
@@ -116,9 +126,26 @@
           case "bakeneko": if (hasYaku("三暗刻") || hasYaku("対々和")) { han += 2; note("化け猫+2翻"); } break;
         }
       }
+      // --- ★D30 解放妖怪の翻加算 ---
+      if (owned.includes("onibi")) {
+        // 字牌の刻子数（手牌側の暗刻 + 晒した明刻）
+        let honorTrips = 0;
+        for (let i = 27; i <= 33; i++) if (counts[i] >= 3) honorTrips++;
+        for (const m of (st.openMelds || [])) if (m.t === "trip" && m.i >= 27) honorTrips++;
+        if (honorTrips > 0) { han += honorTrips; note(`鬼火+${honorTrips}翻`); }
+      }
+      if (owned.includes("nureonna") && res.type === "standard" && tripCount === 0) { han += 2; note("濡女+2翻"); }
+      if (owned.includes("yosuzume") && (st.openMelds || []).length > 0) { han += 2; note("夜雀+2翻"); }
+      if (owned.includes("ungaikyo") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 3; note("雲外鏡+3翻"); }
+      if (owned.includes("umibozu") && hasYaku("清一色")) { han += 3; note("海坊主+3翻"); }
+      if (owned.includes("hakutaku")) { han += 2; note("白澤+2翻"); }
+
       // --- 翻の底上げ/パリティ ---
       if (owned.includes("bakedanuki") && han < 2) { han = 2; note("化け狸: 最低2翻"); }
       if (owned.includes("karakasa") && (han % 2 === 1)) { han += 1; note("唐傘+1翻"); }
+      // --- ★D30 段階発動（他の加算が済んだ後に判定） ---
+      if (owned.includes("shutendoji") && han >= 5) { han += 2; note("酒呑童子+2翻"); }
+      if (owned.includes("ryujin") && han >= 13) { han += 4; note("龍神+4翻"); }
 
       // --- 符加算（満貫以上では自然に無意味化＝インフレしない） ---
       let fuAdd = 0;
@@ -226,7 +253,10 @@
       this.deck = makeStartingDeck();
       this.koban = 4 + 2 * this.metaLvl("seed_koban");
       this.yokai = [];
-      if (this.metaLvl("lucky_start") > 0) this.yokai.push(shuffle(YOKAI_IDS, this.rng)[0]);
+      if (this.metaLvl("lucky_start") > 0) {
+        const basePool = YOKAI_IDS.filter((id) => !YOKAI[id].unlock); // 解放妖怪は開始ボーナス対象外
+        this.yokai.push(shuffle(basePool, this.rng)[0]);
+      }
       this.mode = (this._opts && this._opts.mode) || "campaign"; // "campaign" | "endless"
       this.roundsCleared = 0;
       this.totalAgari = 0;
@@ -526,8 +556,16 @@
       }
       return picked;
     }
+    // ★D30: 解放妖怪の出現条件 = 図鑑で解放済み かつ 次のステージ番号 >= minStage
+    // （ショップ中の roundIndex は「今クリアしたステージ」なので、次ステージ番号 = roundIndex + 2）
+    _yokaiAvailable(id) {
+      const u = YOKAI[id].unlock;
+      if (!u) return true; // 基本妖怪は常時
+      const unlocked = ((this.meta && this.meta.unlockedYokai) || []).includes(id);
+      return unlocked && (this.roundIndex + 2) >= u.minStage;
+    }
     rollShop() {
-      const pool = YOKAI_IDS.filter((id) => !this.yokai.includes(id));
+      const pool = YOKAI_IDS.filter((id) => !this.yokai.includes(id) && this._yokaiAvailable(id));
       const offers = this._weightedYokaiPool(pool);
       // ★D25: ツモ回復アイテム。お茶(+3)は常設(値上がり式)、甘露(全回復)は25%で出現。
       const hasKanro = this.rng() < 0.25;

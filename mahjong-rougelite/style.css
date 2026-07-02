@@ -183,6 +183,10 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .meta-note { text-align: center; font-size: 11px; color: #8a8575; margin-top: 12px; }
 .pips { font-size: 11px; color: var(--gold); letter-spacing: 1px; }
 .meta-max { font-weight: 800; color: var(--green); font-size: 13px; padding: 0 6px; }
+/* ★D30 妖怪図鑑 */
+.locked-yokai { opacity: .8; background: #f3f0e8; border-color: #ddd4bd; }
+.locked-yokai .info .n { color: #8a8575; }
+.stage-gate { font-size: 9px; font-weight: 800; color: #fff; background: var(--purple); border-radius: 5px; padding: 1px 5px; margin-left: 3px; vertical-align: middle; }
 .start-btn { display: block; width: 82%; margin: 18px auto 0; font-size: 17px; padding: 14px; }
 .title .home { cursor: pointer; }
 

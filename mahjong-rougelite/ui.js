@@ -6,11 +6,12 @@
 
   const SUIT_KANJI = { m: "萬", p: "筒", s: "索" };
   const META_KEY = "yurukawa_mj_meta";
-  function loadMeta() { try { const s = localStorage.getItem(META_KEY); if (s) return JSON.parse(s); } catch (e) {} return { medals: 0, upgrades: {}, endlessUnlocked: false }; }
+  function loadMeta() { try { const s = localStorage.getItem(META_KEY); if (s) return JSON.parse(s); } catch (e) {} return { medals: 0, upgrades: {}, endlessUnlocked: false, unlockedYokai: [] }; }
   function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {} }
 
   let meta = loadMeta();
   if (meta.endlessUnlocked === undefined) meta.endlessUnlocked = false;
+  if (!Array.isArray(meta.unlockedYokai)) meta.unlockedYokai = []; // 旧セーブ互換
   let screen = "title";
   let game = null;
   let sel = null; // 交換選択 {zone:'hand'|'tsumo', i}
@@ -95,6 +96,20 @@
       const btn = maxed ? `<span class="meta-max">MAX</span>` : `<button class="btn small gold" ${afford ? "" : "disabled"} data-metabuy="${id}">🏅${cost}</button>`;
       return `<div class="offer"><span class="face">${u.face}</span><div class="info"><div class="n">${u.name} <span class="pips">${pips}</span></div><div class="d">${u.desc}</div></div>${btn}</div>`;
     }).join("");
+    // ★D30: 妖怪図鑑（メダルで解放 → 規定ステージ以降のショップに出現）
+    const unlockIds = MJ.YOKAI_IDS.filter((id) => MJ.YOKAI[id].unlock);
+    const zukanRows = unlockIds.map((id) => {
+      const y = MJ.YOKAI[id];
+      const owned = meta.unlockedYokai.includes(id);
+      const afford = meta.medals >= y.unlock.cost;
+      const btn = owned
+        ? `<span class="meta-max">解放済</span>`
+        : `<button class="btn small gold" ${afford ? "" : "disabled"} data-unlockyokai="${id}">🏅${y.unlock.cost}</button>`;
+      return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div></div>${btn}</div>`;
+    }).join("");
+    const zukanHtml = `<div class="meta-head" style="margin-top:16px">📖 妖怪図鑑（メダルで解放）</div>
+      <div class="meta-note" style="margin:2px 0 8px">解放した妖怪は、記載ステージ以降の「妖怪の市」に並ぶようになります</div>
+      <div class="shop-items">${zukanRows}</div>`;
     const modeHtml = meta.endlessUnlocked
       ? `<div class="mode-select">
            <button class="mode-btn ${selectedMode === "campaign" ? "active" : ""}" data-mode="campaign">📖 百鬼夜行<span class="mode-sub">全8戦・制覇を目指す</span></button>
@@ -106,6 +121,7 @@
        <div class="medal-bar">所持メダル 🏅 <b>${meta.medals}</b></div>
        <div class="meta-head">🏯 妖怪茶屋（恒久強化）</div>
        <div class="shop-items">${rows}</div>
+       ${zukanHtml}
        ${modeHtml}
        <button class="btn small indigo help-open" data-help="1">❓ 遊び方（はじめての方へ）</button>
        <button class="btn play start-btn" data-startrun="1">▶ ${selectedMode === "endless" ? "無限夜行へ出発" : "百鬼夜行へ出発"}</button>
@@ -324,9 +340,10 @@
   function toTitle() { screen = "title"; sel = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai]");
     if (!t) return;
     if (t.dataset.yokaipanel) { yokaiPanelId = (yokaiPanelId === t.dataset.yokaipanel) ? null : t.dataset.yokaipanel; renderYokai(); return; }
+    if (t.dataset.unlockyokai) { unlockYokai(t.dataset.unlockyokai); return; }
     if (t.dataset.help) { helpOpen = true; renderTitle(); return; }
     if (t.dataset.helpclose) { helpOpen = false; renderTitle(); return; }
     if (t.dataset.metabuy) return buyMeta(t.dataset.metabuy);
@@ -378,6 +395,15 @@
     renderBoard();
   }
 
+  function unlockYokai(id) {
+    const y = MJ.YOKAI[id];
+    if (!y || !y.unlock || meta.unlockedYokai.includes(id)) return;
+    if (meta.medals < y.unlock.cost) return;
+    meta.medals -= y.unlock.cost;
+    meta.unlockedYokai.push(id);
+    saveMeta();
+    renderTitle();
+  }
   function buyMeta(id) {
     const lv = meta.upgrades[id] || 0;
     const cost = MJ.metaNextCost(id, lv);
