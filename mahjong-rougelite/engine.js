@@ -1,0 +1,614 @@
+/*
+ * ゆるかわ百鬼夜行 v0.2 — ゲームエンジン（本格アガリ型）
+ * 仕様: ../design/core-loop-v0.2-agari.md
+ * 手牌解析(アガリ/役/得点)は hand.js(MJHand) に委譲。
+ * ここでは 山/巡目/打牌/アガリ のループ、妖怪(翻/基礎/倍率フック)、ショップ、メタ進行。
+ */
+(function (root, factory) {
+  const MJHand = (typeof module !== "undefined" && module.exports) ? require("./hand.js") : root.MJHand;
+  const api = factory(MJHand);
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  root.MJ = api;
+})(typeof self !== "undefined" ? self : this, function (MJHand) {
+  "use strict";
+
+  const SUITS = ["m", "p", "s"];
+  function tileLabelCode(code) { return MJHand.tileLabel(MJHand.codeToIndex(code)); }
+
+  // ---- 妖怪（v0.2: 翻/基礎点/倍率に効く） -----------------------------------
+  // hooks: hanAdd(ctx) 加算翻 / baseAdd(ctx) 基礎点加算 / baseTimes:係数 / multTimes:係数
+  // flags: 進行系(小判/巡目/敗北無効/リロール/先読み)
+  const YOKAI = {
+    rokurokubi:   { name: "ろくろ首", face: "🦒", rarity: 1, price: 4, desc: "順子3つ以上のアガリで +1翻" },
+    tofukozo:     { name: "豆腐小僧", face: "🍮", rarity: 1, price: 4, desc: "白を含むアガリで 符+10" },
+    ittanmomen:   { name: "一反木綿", face: "🧻", rarity: 2, price: 6, desc: "一気通貫か三色を含むと +1翻" },
+    zashikiwarashi:{ name: "座敷童", face: "🧒", rarity: 1, price: 4, desc: "アガるたび 小判+1", flags: { kobanOnAgari: 1 } },
+    kappa:        { name: "河童", face: "🐢", rarity: 1, price: 4, desc: "索子1枚につき 符+2" },
+    tengu:        { name: "天狗", face: "👺", rarity: 2, price: 6, desc: "混一色/清一色で +2翻" },
+    yukionna:     { name: "雪女", face: "⛄", rarity: 2, price: 6, desc: "ステージ間のツモ回復 +2", flags: { recovery: 2 } },
+    bakedanuki:   { name: "化け狸", face: "🦝", rarity: 3, price: 8, desc: "アガリの翻を最低2翻に" },
+    kitsunebi:    { name: "狐火", face: "🦊", rarity: 3, price: 8, desc: "アガリの点数 ×1.5" },
+    nurikabe:     { name: "ぬりかべ", face: "🧱", rarity: 2, price: 6, desc: "1ランに1度、敗北を無効化(ツモ回復)", flags: { lossNegate: 1 } },
+    chochin:      { name: "提灯お化け", face: "🏮", rarity: 1, price: 4, desc: "ショップのリロールが1回の訪問につき3回まで無料", flags: { freeRerollLimit: 3 } },
+    mitsumekozo:  { name: "三つ目小僧", face: "👁️", rarity: 1, price: 4, desc: "次のツモを先読み", flags: { peek: 3 } },
+    azukiarai:    { name: "小豆洗い", face: "🫘", rarity: 1, price: 4, desc: "七対子で +2翻" },
+    kamaitachi:   { name: "鎌鼬", face: "🌪️", rarity: 2, price: 6, desc: "この道中のアガリ数×300点 を加点" },
+    nurarihyon:   { name: "ぬらりひょん", face: "👴", rarity: 3, price: 8, desc: "アガるたび +200点(ラン中累積)" },
+    bakeneko:     { name: "化け猫", face: "🐈‍⬛", rarity: 3, price: 8, desc: "刻子3つ以上のアガリで +2翻" },
+    karakasa:     { name: "唐傘小僧", face: "☂️", rarity: 1, price: 4, desc: "翻が奇数なら +1翻" },
+    fukunokami:   { name: "福の神", face: "🧧", rarity: 2, price: 6, desc: "所持小判10ごとに +500点" },
+    raiju:        { name: "雷獣", face: "⚡", rarity: 2, price: 6, desc: "三元牌の刻子で 点数×2" },
+    daidarabocchi:{ name: "だいだらぼっち", face: "🗻", rarity: 3, price: 8, desc: "全てのアガリで 符+20" },
+    // ---- サポート/ユーティリティ系（三つ目小僧の仲間） ----
+    hyakume:      { name: "百目", face: "👀", rarity: 2, price: 7, desc: "ツモが6枚になる（毎回1枚多く選べる）", flags: { tsumoSize: 1 } },
+    amefurikozo:  { name: "雨降小僧", face: "☔", rarity: 1, price: 4, desc: "ツモを引くたび 小判+1", flags: { kobanOnDraw: 1 } },
+    wanyudo:      { name: "輪入道", face: "🎡", rarity: 2, price: 6, desc: "ショップの妖怪が2小判引き", flags: { shopDiscount: 2 } },
+    sunekosuri:   { name: "すねこすり", face: "🐕", rarity: 1, price: 5, desc: "各ラウンド1回 手牌を引き直せる", flags: { mulligan: 1 } },
+    tenome:       { name: "手の目", face: "✋", rarity: 1, price: 5, desc: "手が進むツモ牌を光らせる", flags: { highlight: true } },
+    miagenyudo:   { name: "見上げ入道", face: "👹", rarity: 3, price: 8, desc: "各ラウンド1回 テンパイ中のツモに待ち牌を確定で1枚混ぜる", flags: { guaranteedDraw: 1 } },
+    teruterubozu: { name: "てるてる坊主", face: "☀️", rarity: 2, price: 6, desc: "アガリ時 残りツモ回数×200点（速いほど得）" },
+    bakezouri:    { name: "化け草鞋", face: "👡", rarity: 1, price: 5, desc: "各ラウンド2回 ツモだけ無料で引き直せる", flags: { freeTsumoReroll: 2 } },
+    kanadama:     { name: "金霊", face: "💴", rarity: 2, price: 6, desc: "ラウンドクリアの小判報酬 ×2", flags: { rewardMult: 2 } },
+    fukusuke:     { name: "福助", face: "🎎", rarity: 1, price: 4, desc: "ラウンド開始時 小判+3", flags: { kobanOnRound: 3 } },
+    senrigan:     { name: "千里眼", face: "🔮", rarity: 2, price: 6, desc: "待ち牌の残り枚数に、まだ山に出ていない捨て牌分も含めて見える", flags: { countWaits: true } },
+    furoshiki:    { name: "風呂敷お化け", face: "🎒", rarity: 2, price: 7, desc: "妖怪枠 +1（最大10）", flags: { extraSlot: 1 } },
+  };
+  const YOKAI_IDS = Object.keys(YOKAI);
+  function yokaiFlag(owned, key, reducer) {
+    let acc = reducer === "sum" ? 0 : false;
+    for (const id of owned) {
+      const f = YOKAI[id] && YOKAI[id].flags;
+      if (f && f[key] != null) acc = reducer === "sum" ? acc + f[key] : (acc || f[key]);
+    }
+    return acc;
+  }
+
+  // ---- メタ進行（恒久強化） --------------------------------------------------
+  const META_UPGRADES = {
+    seed_koban:  { name: "軍資金",   face: "💰", desc: "開始時の小判 +2 /Lv", max: 3, costs: [8, 12, 16] },
+    nebari:      { name: "粘り",     face: "🪢", desc: "ステージ間のツモ回復 +1 /Lv", max: 2, costs: [15, 25] },
+    engimono:    { name: "縁起物",   face: "🎏", desc: "アガリの点数 +300 /Lv", max: 2, costs: [12, 20] },
+    slot_plus:   { name: "妖怪の絆", face: "🤝", desc: "妖怪枠 +1 /Lv",       max: 2, costs: [18, 30] },
+    shop_size:   { name: "賑わう市", face: "🏮", desc: "ショップの妖怪 +1",    max: 1, costs: [15] },
+    lucky_start: { name: "はじめの友", face: "🦊", desc: "開始時にランダムな妖怪1体", max: 1, costs: [25] },
+  };
+  const META_IDS = Object.keys(META_UPGRADES);
+  function metaNextCost(id, level) {
+    const u = META_UPGRADES[id];
+    if (!u || level >= u.max) return null;
+    return u.costs[level];
+  }
+
+  // ---- 得点（アガリ）: MJHand.analyze に妖怪フックを適用 ---------------------
+  function computeAgari(codes, state) {
+    const counts = MJHand.handToCounts(codes);
+    // 規約: codes の最後の1枚がアガリ牌（平和の両面待ち判定等に使用）
+    const winTile = MJHand.codeToIndex(codes[codes.length - 1]);
+    const res = MJHand.analyze(counts, { winTile, baWind: (state || {}).baWind, openMelds: (state || {}).openMelds });
+    if (!res.agari) return { agari: false };
+    // 門前ツモが常に1翻付くため、アガリは必ず役あり(han>=1)。
+    const st = state || {};
+    const owned = st.yokai || [];
+    const log = res.yaku.map((y) => `${y.name}${y.han}翻`);
+    const names = res.yaku.map((y) => y.name);
+    const hasYaku = (n) => names.some((x) => x === n || x.startsWith(n));
+    const seqCount = res.seqCount || 0;
+    const tripCount = res.tripCount || 0;
+    const souCount = counts.slice(18, 27).reduce((a, b) => a + b, 0);
+    const hasHaku = counts[31] > 0;
+    const dragonTrip = counts[31] >= 3 || counts[32] >= 3 || counts[33] >= 3;
+
+    // ★D22: 標準麻雀の点数計算（翻・符・満貫キャップ）。妖怪は 翻/符/加点/倍率 の4種フックに整理。
+    const isYakuman = res.yakumanCount > 0;
+    let han = res.han;
+    let fu = res.fu;
+    let flat = 0;          // 最終点数へのフラット加算
+    const times = [];      // 最終点数への倍率
+    const note = (m) => log.push(m);
+
+    // --- 翻加算（役満時は既に最高位のため無効） ---
+    if (!isYakuman) {
+      for (const id of owned) {
+        switch (id) {
+          case "rokurokubi": if (seqCount >= 3) { han += 1; note("ろくろ首+1翻"); } break;
+          case "ittanmomen": if (hasYaku("一気通貫") || hasYaku("三色同順")) { han += 1; note("一反木綿+1翻"); } break;
+          case "tengu": if (hasYaku("混一色") || hasYaku("清一色")) { han += 2; note("天狗+2翻"); } break;
+          case "azukiarai": if (res.type === "chiitoi") { han += 2; note("小豆洗い+2翻"); } break;
+          case "bakeneko": if (hasYaku("三暗刻") || hasYaku("対々和")) { han += 2; note("化け猫+2翻"); } break;
+        }
+      }
+      // --- 翻の底上げ/パリティ ---
+      if (owned.includes("bakedanuki") && han < 2) { han = 2; note("化け狸: 最低2翻"); }
+      if (owned.includes("karakasa") && (han % 2 === 1)) { han += 1; note("唐傘+1翻"); }
+
+      // --- 符加算（満貫以上では自然に無意味化＝インフレしない） ---
+      let fuAdd = 0;
+      for (const id of owned) {
+        switch (id) {
+          case "tofukozo": if (hasHaku) { fuAdd += 10; note("豆腐小僧: 符+10"); } break;
+          case "kappa": if (souCount > 0) { fuAdd += 2 * souCount; note(`河童: 符+${2 * souCount}`); } break;
+          case "daidarabocchi": fuAdd += 20; note("だいだらぼっち: 符+20"); break;
+        }
+      }
+      if (fuAdd > 0) fu = Math.ceil((fu + fuAdd) / 10) * 10;
+    }
+
+    // --- フラット加点（役満にも乗る） ---
+    for (const id of owned) {
+      switch (id) {
+        case "kamaitachi": { const a = st.agariThisRound || 0; if (a > 0) { flat += 300 * a; note(`鎌鼬: +${300 * a}点`); } } break;
+        case "nurarihyon": { const a = st.totalAgari || 0; if (a > 0) { flat += 200 * a; note(`ぬらりひょん: +${200 * a}点`); } } break;
+        case "fukunokami": { const m = Math.floor((st.koban || 0) / 10) * 500; if (m > 0) { flat += m; note(`福の神: +${m}点`); } } break;
+        case "teruterubozu": { const d = st.drawsLeft || 0; if (d > 0) { flat += 200 * d; note(`てるてる坊主: +${200 * d}点`); } } break;
+        case "raiju": if (dragonTrip) { times.push(2); note("雷獣: 点数×2"); } break;
+      }
+    }
+    // 縁起物(メタ): アガリの点数+300/Lv
+    if (st.engimono) { flat += 300 * st.engimono; note(`縁起物: +${300 * st.engimono}点`); }
+    if (owned.includes("kitsunebi")) { times.push(1.5); note("狐火: 点数×1.5"); }
+
+    const hf = MJHand.scoreHanFu(han, fu, res.yakumanCount);
+    let score = hf.score + flat;
+    for (const x of times) score *= x;
+    score = Math.round(score);
+    return { agari: true, han, fu, yakumanCount: res.yakumanCount, limit: hf.limit, score, yaku: res.yaku, log, type: res.type };
+  }
+
+  // ---- 山（デッキ） ----------------------------------------------------------
+  function makeStartingDeck() {
+    // 標準136枚: 数牌 m/p/s 1-9 ×4 + 字牌 z1-7 ×4
+    const deck = [];
+    for (const s of SUITS) for (let r = 1; r <= 9; r++) for (let k = 0; k < 4; k++) deck.push(s + r);
+    for (let z = 1; z <= 7; z++) for (let k = 0; k < 4; k++) deck.push("z" + z);
+    return deck;
+  }
+  function shuffle(arr, rng) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor((rng ? rng() : Math.random()) * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  const _ORD = { m: 0, p: 1, s: 2, z: 3 };
+  function sortCodes(arr) {
+    return arr.slice().sort((a, b) => {
+      const sa = _ORD[a[0]], sb = _ORD[b[0]];
+      if (sa !== sb) return sa - sb;
+      return parseInt(a.slice(1)) - parseInt(b.slice(1));
+    });
+  }
+
+  function makeRounds() {
+    // ★D22: 標準麻雀の点数レンジに合わせた敵HP。「1〜2回のアガリで届く」水準。
+    // 目安: 1翻30符=1000 / 3翻=3900 / 満貫=8000 / 跳満=12000。最終ボスは跳満級1発 or 満貫+α。
+    return [
+      { name: "小豆洗い", target: 1000 }, { name: "唐傘小僧", target: 1600 }, { name: "【ボス】提灯お化け", target: 3200, boss: true },
+      { name: "河童", target: 2600 }, { name: "ろくろ首", target: 3900 }, { name: "【ボス】天狗", target: 6400, boss: true },
+      { name: "化け猫", target: 5800 }, { name: "【大ボス】ぬらりひょん", target: 8000, boss: true },
+    ];
+  }
+  const CAMPAIGN_ROUNDS = makeRounds();
+  const ENDLESS_NAMES = ["鵺", "がしゃどくろ", "九尾の狐", "大百足", "橋姫", "牛鬼", "塗仏", "土蜘蛛"];
+  // ★D23(B1②): 場風ローテーション。2戦ごとに 東→南→西→北 と巡る（8戦でちょうど一周＝百鬼夜行の道中）。
+  // 場風の刻子は2翻・他の風は1翻（全風牌が役牌）。tileIndex 27=東,28=南,29=西,30=北。
+  const WIND_NAMES = { 27: "東", 28: "南", 29: "西", 30: "北" };
+  function baWindFor(i) { return 27 + (Math.floor(i / 2) % 4); }
+  // 任意のステージ番号の定義（8戦目以降は無限生成）
+  function roundDefFor(i) {
+    const wind = baWindFor(i);
+    const windName = WIND_NAMES[wind] + "場";
+    if (i < CAMPAIGN_ROUNDS.length) return Object.assign({ wind, windName }, CAMPAIGN_ROUNDS[i]);
+    const boss = (i + 1) % 3 === 0;
+    const over = i - (CAMPAIGN_ROUNDS.length - 1);
+    // 満貫キャップがあるため無限モードの伸びは緩め(×1.25)。役満(32000)到達は約8戦先。
+    const target = Math.round(CAMPAIGN_ROUNDS[CAMPAIGN_ROUNDS.length - 1].target * Math.pow(1.25, over) / 100) * 100;
+    const name = (boss ? "【百鬼】" : "") + ENDLESS_NAMES[i % ENDLESS_NAMES.length];
+    return { name, target, boss, wind, windName };
+  }
+
+  // ---- ゲーム ----------------------------------------------------------------
+  class Game {
+    constructor(opts = {}) {
+      this.rng = opts.rng || Math.random;
+      this.meta = opts.meta || { upgrades: {} };
+      this._opts = opts;
+      this.reset();
+    }
+    metaLvl(id) { return (this.meta && this.meta.upgrades && this.meta.upgrades[id]) || 0; }
+    reset() {
+      const o = this._opts || {};
+      // ★D25: ツモは全ステージ共通の持ち越しリソース（HP相当）。ステージ間は+3(ボス撃破+3)のみ回復、上限=開始値。
+      this.startDraws = o.draws || 15;
+      this.drawsLeft = this.startDraws;
+      this._baseSlots = (o.slots || 5) + this.metaLvl("slot_plus");
+      this.shopYokaiCount = 3 + this.metaLvl("shop_size");
+      this.engimono = this.metaLvl("engimono");
+      this.deck = makeStartingDeck();
+      this.koban = 4 + 2 * this.metaLvl("seed_koban");
+      this.yokai = [];
+      if (this.metaLvl("lucky_start") > 0) this.yokai.push(shuffle(YOKAI_IDS, this.rng)[0]);
+      this.mode = (this._opts && this._opts.mode) || "campaign"; // "campaign" | "endless"
+      this.roundsCleared = 0;
+      this.totalAgari = 0;
+      this.roundIndex = 0;
+      this.lossNegateUsed = 0;
+      this.teaPrice = 4; // お茶(ツモ+3)の価格。ラン中はリセットせず購入のたびに+1
+      this.phase = "round";
+      this.startRound();
+    }
+    currentRound() { return roundDefFor(this.roundIndex); }
+    // 妖怪枠: 基礎(メタ強化込み) + 妖怪「風呂敷お化け」等のextraSlotフラグ。上限10。
+    get yokaiSlots() { return Math.min(10, this._baseSlots + yokaiFlag(this.yokai, "extraSlot", "sum")); }
+    isLastCampaignStage() { return this.mode === "campaign" && this.roundIndex >= CAMPAIGN_ROUNDS.length - 1; }
+
+    startRound() {
+      this.mulligansLeft = yokaiFlag(this.yokai, "mulligan", "sum");    // すねこすり
+      this.guaranteedLeft = yokaiFlag(this.yokai, "guaranteedDraw", "sum"); // 見上げ入道
+      this.freeTsumoRerollLeft = yokaiFlag(this.yokai, "freeTsumoReroll", "sum"); // 化け草鞋
+      this.koban += yokaiFlag(this.yokai, "kobanOnRound", "sum"); // 福助
+      this.wall = shuffle(this.deck, this.rng);
+      this.discardPile = [];
+      this.roundScore = 0;
+      this.agariThisRound = 0;
+      this.phase = "round";
+      this.dealNewHand();
+    }
+    _tsumoCount() { return 5 + yokaiFlag(this.yokai, "tsumoSize", "sum"); } // 百目で+1
+    // 手牌＋ツモ（既定5枚）を配る。★D24: 通常は晒し面子もリセット（keepMelds=trueはすねこすり用）
+    dealNewHand(keepMelds) {
+      if (!keepMelds) this.melds = [];
+      this.mustDiscard = false;
+      this.hand = sortCodes(this._drawN(this.expectedConcealed));
+      this.tsumo = sortCodes(this._drawN(this._tsumoCount()));
+    }
+    // 鳴き後の手牌側の枚数（面子1つにつき3枚が晒しへ移動）
+    get expectedConcealed() { return 13 - 3 * ((this.melds && this.melds.length) || 0); }
+    // すねこすり: 手牌＋ツモを引き直す（1ラウンド回数制限・ツモ回数は消費しない）
+    redealHand() {
+      if (this.phase !== "round") return { ok: false };
+      if (this.mulligansLeft <= 0) return { ok: false, message: "引き直しはできません" };
+      for (const c of this.hand) this.discardPile.push(c);
+      for (const c of this.tsumo) this.discardPile.push(c);
+      this.dealNewHand(true); // 晒した面子はそのまま
+      this.mulligansLeft--;
+      return { ok: true };
+    }
+    // 手の目: 実際に手が進む（テンパイに近づく/待ちが広がる）ツモ牌だけを光らせる。
+    // 「同スート近傍なら何でも光る」旧ロジックは範囲が広すぎたため、
+    // 実際にどこかの手牌1枚とスワップしてテンパイ改善(非テンパイ→テンパイ、または待ち種類が増える)する牌だけを対象にする。
+    usefulTsumo() {
+      if (!yokaiFlag(this.yokai, "highlight", "or")) return [];
+      if (this.hand.length !== this.expectedConcealed || this.mustDiscard) return [];
+      const baseWaits = this.handWaits();
+      const baseCount = baseWaits.length;
+      const res = [];
+      for (let j = 0; j < this.tsumo.length; j++) {
+        const tCode = this.tsumo[j];
+        let improves = false;
+        for (let i = 0; i < this.hand.length && !improves; i++) {
+          if (this.hand[i] === tCode) continue; // 同じ牌への交換は無意味
+          const rest = this.hand.slice(0, i).concat(this.hand.slice(i + 1), [tCode]);
+          const w = MJHand.waits(MJHand.handToCounts(rest), this.melds.length);
+          if (baseCount === 0 ? w.length > 0 : w.length > baseCount) improves = true;
+        }
+        if (improves) res.push(j);
+      }
+      return res;
+    }
+    yokaiPrice(id) { return Math.max(1, YOKAI[id].price - yokaiFlag(this.yokai, "shopDiscount", "sum")); }
+    _refillWall() {
+      if (this.wall.length === 0 && this.discardPile.length) {
+        this.wall = shuffle(this.discardPile, this.rng);
+        this.discardPile = [];
+      }
+    }
+    _drawN(n) {
+      const out = [];
+      for (let i = 0; i < n; i++) { this._refillWall(); if (!this.wall.length) break; out.push(this.wall.pop()); }
+      return out;
+    }
+    peekNext() {
+      const n = yokaiFlag(this.yokai, "peek", "sum");
+      if (!n) return [];
+      return this.wall.slice(-n).reverse();
+    }
+    _scoreState() {
+      return { yokai: this.yokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds };
+    }
+    // 化け草鞋: ツモだけ無料で引き直す（ツモ回数を消費しない・回数制限）
+    rerollTsumo() {
+      if (this.phase !== "round") return { ok: false };
+      if (this.freeTsumoRerollLeft <= 0) return { ok: false, message: "無料引き直しがありません" };
+      for (const c of this.tsumo) this.discardPile.push(c);
+      this.tsumo = sortCodes(this._drawN(this._tsumoCount()));
+      this.freeTsumoRerollLeft--;
+      return { ok: true };
+    }
+    // 待ち牌が山(wall)にあと何枚あるか {tileIndex: count}。基本機能として常時有効。
+    // 千里眼所持時は、まだ山に無くても捨て山(discardPile)に眠っている分まで見える（上位互換）。
+    waitCounts() {
+      const seeDiscards = yokaiFlag(this.yokai, "countWaits", "or");
+      const pool = seeDiscards ? this.wall.concat(this.discardPile) : this.wall;
+      const m = {};
+      for (const t of this.handWaits()) {
+        let c = 0; for (const code of pool) if (MJHand.codeToIndex(code) === t) c++;
+        m[t] = c;
+      }
+      return m;
+    }
+    // 手牌とツモ牌を自由に交換
+    swapTile(handIdx, tsumoIdx) {
+      if (this.phase !== "round" || this.mustDiscard) return { ok: false };
+      if (handIdx < 0 || handIdx >= this.hand.length || tsumoIdx < 0 || tsumoIdx >= this.tsumo.length) return { ok: false };
+      const h = this.hand[handIdx];
+      this.hand[handIdx] = this.tsumo[tsumoIdx];
+      this.tsumo[tsumoIdx] = h;
+      this.hand = sortCodes(this.hand);
+      this.tsumo = sortCodes(this.tsumo);
+      return { ok: true };
+    }
+    // ---- ★D24 鳴き（ポン/チー） ----------------------------------------------
+    // ツモの1枚＋手牌の2枚で刻子/順子が完成するとき宣言できる。
+    // メリット: 宣言後に1枚捨てると、ツモプールが無料で全リフレッシュ（=ツモ回数の前借り）。
+    // デメリット: 門前でなくなる（門前ツモ/平和/七対子/一盃口/二盃口/四暗刻/九蓮が消え、喰い下がりも適用）。
+    callOptions() {
+      if (this.phase !== "round" || this.mustDiscard) return [];
+      if (this.melds.length >= 4) return [];
+      const opts = [];
+      const handCount = {};
+      for (const c of this.hand) handCount[c] = (handCount[c] || 0) + 1;
+      const seen = new Set();
+      for (let j = 0; j < this.tsumo.length; j++) {
+        const c = this.tsumo[j];
+        if (seen.has(c)) continue; // 同一牌の重複オプションは1つで良い
+        seen.add(c);
+        const t = MJHand.codeToIndex(c);
+        // ポン: 手牌に同じ牌が2枚
+        if ((handCount[c] || 0) >= 2) {
+          opts.push({ tsumoIdx: j, type: "pon", meldTile: t, use: [c, c], label: "ポン " + MJHand.tileLabel(t) });
+        }
+        // チー: 数牌のみ。(t-2,t-1) (t-1,t+1) (t+1,t+2) の3パターン
+        if (t < 27) {
+          const r = t % 9, base = t - r;
+          const pats = [[r - 2, r - 1], [r - 1, r + 1], [r + 1, r + 2]];
+          for (const [a, b] of pats) {
+            if (a < 0 || b > 8) continue;
+            const ca = MJHand.indexToCode(base + a), cb = MJHand.indexToCode(base + b);
+            if ((handCount[ca] || 0) >= 1 && (handCount[cb] || 0) >= 1) {
+              const low = Math.min(t, base + a, base + b);
+              opts.push({ tsumoIdx: j, type: "chi", meldTile: low, use: [ca, cb], label: "チー " + MJHand.tileLabel(low) + "-" + MJHand.tileLabel(low + 1) + "-" + MJHand.tileLabel(low + 2) });
+            }
+          }
+        }
+      }
+      return opts;
+    }
+    call(opt) {
+      if (this.phase !== "round" || this.mustDiscard) return { ok: false };
+      if (!opt || opt.tsumoIdx == null || opt.tsumoIdx >= this.tsumo.length) return { ok: false };
+      // 手牌から使用する2枚を除去
+      for (const u of opt.use) {
+        const i = this.hand.indexOf(u);
+        if (i < 0) return { ok: false, message: "手牌に必要な牌がありません" };
+        this.hand.splice(i, 1);
+      }
+      this.tsumo.splice(opt.tsumoIdx, 1); // 鳴いた牌をプールから取得
+      this.melds.push({ t: opt.type === "pon" ? "trip" : "seq", i: opt.meldTile, open: true });
+      this.mustDiscard = true; // 1枚捨てるまで他の操作は不可
+      return { ok: true, label: opt.label };
+    }
+    // 鳴き後の1枚捨て → ツモプールを無料で全リフレッシュ（テンポの前借り）
+    discardForCall(handIdx) {
+      if (this.phase !== "round" || !this.mustDiscard) return { ok: false };
+      if (handIdx < 0 || handIdx >= this.hand.length) return { ok: false };
+      this.discardPile.push(this.hand.splice(handIdx, 1)[0]);
+      this.hand = sortCodes(this.hand);
+      for (const c of this.tsumo) this.discardPile.push(c);
+      this.tsumo = sortCodes(this._drawN(this._tsumoCount()));
+      this.mustDiscard = false;
+      return { ok: true };
+    }
+    // 手牌の待ち（テンパイ表示用）index配列。★D24: 鳴き後(13-3n枚)にも対応
+    handWaits() {
+      if (this.hand.length !== this.expectedConcealed || this.mustDiscard) return [];
+      return MJHand.waits(MJHand.handToCounts(this.hand), this.melds.length);
+    }
+    // ★D1: テンパイ時、待ち牌ごとに「アガった場合の点数・翻・限度名」をプレビュー
+    // 返り値: [{tile, count, score, han, fu, limit}]（countは山残り枚数、千里眼所持なら捨て山込み）
+    waitPreviews() {
+      const waits = this.handWaits();
+      if (!waits.length) return [];
+      const wc = this.waitCounts();
+      const st = this._scoreState();
+      return waits.map((t) => {
+        const r = computeAgari(this.hand.concat([MJHand.indexToCode(t)]), st);
+        if (!r.agari) return { tile: t, count: wc[t], yakuless: true }; // 鳴いた手の役なし形
+        return { tile: t, count: wc[t], score: r.score, han: r.han, fu: r.fu, limit: r.limit };
+      });
+    }
+    // ツモのいずれかで手牌側が完成するか（＋最高得点）。鳴き後は13-3n枚+1
+    agariInfo() {
+      if (this.hand.length !== this.expectedConcealed || this.mustDiscard) return { agari: false };
+      let best = null, wtile = null;
+      for (const t of this.tsumo) {
+        const r = computeAgari(this.hand.concat([t]), this._scoreState());
+        if (r.agari && (!best || r.score > best.score)) { best = r; wtile = t; }
+      }
+      if (!best) return { agari: false };
+      return Object.assign({ winTile: wtile }, best);
+    }
+    // ツモ5枚を捨てて新たに5枚引く（＝1手＝資源）
+    drawTsumo() {
+      if (this.phase !== "round") return { ok: false };
+      if (this.drawsLeft <= 0) { const out = { ok: false, message: "ツモ回数がありません" }; this._handleDrawsOut(out); return out; }
+      for (const c of this.tsumo) this.discardPile.push(c);
+      const drawn = this._drawN(this._tsumoCount());
+      // 見上げ入道: テンパイ中は待ち牌を1枚確定で混ぜる（1ラウンド回数制限）
+      if (this.guaranteedLeft > 0) {
+        const waits = this.handWaits();
+        if (waits.length && !drawn.some((c) => waits.includes(MJHand.codeToIndex(c)))) {
+          const wi = this.wall.findIndex((c) => waits.includes(MJHand.codeToIndex(c)));
+          if (wi >= 0) {
+            const wtile = this.wall.splice(wi, 1)[0];
+            this.discardPile.push(drawn.pop());
+            drawn.push(wtile);
+            this.guaranteedLeft--;
+          }
+        }
+      }
+      this.tsumo = sortCodes(drawn);
+      this.koban += yokaiFlag(this.yokai, "kobanOnDraw", "sum"); // 雨降小僧
+      this.drawsLeft--;
+      const out = { ok: true };
+      if (this.drawsLeft <= 0 && !this.agariInfo().agari) this._handleDrawsOut(out);
+      return out;
+    }
+    _handleDrawsOut(out) {
+      // ツモ切れ。ぬりかべがあれば回復、無ければ敗北。
+      const negate = yokaiFlag(this.yokai, "lossNegate", "sum");
+      if (this.lossNegateUsed < negate) {
+        this.lossNegateUsed++;
+        this.drawsLeft = Math.max(this.drawsLeft, 3);
+        out.lossNegated = true;
+      } else {
+        this.phase = "lost";
+        out.gameOver = true;
+      }
+    }
+    declareAgari() {
+      if (this.phase !== "round") return { ok: false };
+      const info = this.agariInfo();
+      if (!info.agari) return { ok: false, message: "まだアガリの形ではありません（手牌13枚をテンパイに）" };
+      this.roundScore += info.score;
+      this.agariThisRound++;
+      this.totalAgari++;
+      this.koban += yokaiFlag(this.yokai, "kobanOnAgari", "sum");
+      const out = { ok: true, agari: true, score: info.score, han: info.han, fu: info.fu, limit: info.limit, yakumanCount: info.yakumanCount, yaku: info.yaku, log: info.log, winTile: info.winTile };
+      if (this.roundScore >= this.currentRound().target) {
+        this._finishRoundWin(out);
+      } else {
+        this.dealNewHand(); // 新しい手牌13＋ツモ5で続行
+        if (this.drawsLeft <= 0 && !this.agariInfo().agari) this._handleDrawsOut(out);
+      }
+      return out;
+    }
+    _finishRoundWin(out) {
+      this.roundsCleared++;
+      const interest = Math.min(5, Math.floor(this.koban / 5));
+      const rmult = Math.max(1, yokaiFlag(this.yokai, "rewardMult", "sum")); // 金霊
+      // ★D25: 残ツモの小判ボーナスは廃止（残ツモの持ち越し自体が速アガリの報酬）
+      const reward = (3 + interest) * rmult;
+      this.koban += reward;
+      out.roundCleared = true;
+      out.reward = { total: reward, interest };
+      if (this.isLastCampaignStage()) { this.phase = "won"; out.runWon = true; } // キャンペーン制覇
+      else { this.enterShop(); out.enteredShop = true; } // 無限モードは制覇せず継続
+    }
+
+    // ---- ショップ -----------------------------------------------------------
+    enterShop() { this.phase = "shop"; this.freeRerollsUsed = 0; this.rollShop(); }
+    // レア度が高いほど出現しにくい重み付き抽選（★=10 / ★★=4 / ★★★=1）。重複無しでshopYokaiCount体選ぶ。
+    _weightedYokaiPool(pool) {
+      const W = { 1: 10, 2: 4, 3: 1 };
+      const remaining = pool.map((id) => ({ id, w: W[YOKAI[id].rarity] || 1 }));
+      const picked = [];
+      const n = Math.min(this.shopYokaiCount, remaining.length);
+      for (let k = 0; k < n; k++) {
+        const total = remaining.reduce((a, x) => a + x.w, 0);
+        let r = this.rng() * total;
+        let idx = 0;
+        for (; idx < remaining.length; idx++) { r -= remaining[idx].w; if (r <= 0) break; }
+        if (idx >= remaining.length) idx = remaining.length - 1;
+        picked.push(remaining[idx].id);
+        remaining.splice(idx, 1);
+      }
+      return picked;
+    }
+    rollShop() {
+      const pool = YOKAI_IDS.filter((id) => !this.yokai.includes(id));
+      const offers = this._weightedYokaiPool(pool);
+      // ★D25: ツモ回復アイテム。お茶(+3)は常設(値上がり式)、甘露(全回復)は25%で出現。
+      const hasKanro = this.rng() < 0.25;
+      this.shop = { yokai: offers, tea: true, kanro: hasKanro, kanroPrice: 10 };
+    }
+    reroll() {
+      if (this.phase !== "shop") return { ok: false };
+      // 提灯お化け: 1回のショップ訪問につき指定回数まで無料（無限リロールで狙い撃ちできないよう上限あり）
+      const freeLimit = yokaiFlag(this.yokai, "freeRerollLimit", "sum");
+      const freeAvailable = (this.freeRerollsUsed || 0) < freeLimit;
+      const cost = freeAvailable ? 0 : 1;
+      if (this.koban < cost) return { ok: false, message: "小判が足りません" };
+      this.koban -= cost;
+      if (freeAvailable) this.freeRerollsUsed = (this.freeRerollsUsed || 0) + 1;
+      this.rollShop(); return { ok: true };
+    }
+    buyYokai(id) {
+      if (this.phase !== "shop" || !this.shop.yokai.includes(id)) return { ok: false, message: "在庫にありません" };
+      if (this.yokai.length >= this.yokaiSlots) return { ok: false, message: "妖怪枠がいっぱいです（入れ替えできます）", slotsFull: true };
+      const price = this.yokaiPrice(id);
+      if (this.koban < price) return { ok: false, message: "小判が足りません" };
+      this.koban -= price; this.yokai.push(id);
+      this.shop.yokai = this.shop.yokai.filter((x) => x !== id);
+      return { ok: true };
+    }
+    // 妖怪枠が埋まっている時、所持妖怪1体を手放して新しい妖怪と入れ替える
+    swapYokai(releaseId, newId) {
+      if (this.phase !== "shop" || !this.shop.yokai.includes(newId)) return { ok: false, message: "在庫にありません" };
+      if (!this.yokai.includes(releaseId)) return { ok: false, message: "所持していません" };
+      const price = this.yokaiPrice(newId);
+      if (this.koban < price) return { ok: false, message: "小判が足りません" };
+      this.koban -= price;
+      this.yokai = this.yokai.filter((x) => x !== releaseId);
+      this.yokai.push(newId);
+      this.shop.yokai = this.shop.yokai.filter((x) => x !== newId);
+      return { ok: true, released: releaseId, gained: newId };
+    }
+    // ★D25: お茶＝ツモ+3の即時回復（上限=開始値）。価格はラン中に購入毎+1で上昇し続ける
+    buyTea() {
+      if (this.phase !== "shop" || !this.shop.tea) return { ok: false };
+      if (this.koban < this.teaPrice) return { ok: false, message: "小判が足りません" };
+      if (this.drawsLeft >= this.startDraws) return { ok: false, message: "ツモは満タンです" };
+      this.koban -= this.teaPrice;
+      this.teaPrice += 1;
+      this.drawsLeft = Math.min(this.startDraws, this.drawsLeft + 3);
+      return { ok: true };
+    }
+    // 甘露＝ツモ全回復（低確率出現）
+    buyKanro() {
+      if (this.phase !== "shop" || !this.shop.kanro) return { ok: false };
+      if (this.koban < this.shop.kanroPrice) return { ok: false, message: "小判が足りません" };
+      if (this.drawsLeft >= this.startDraws) return { ok: false, message: "ツモは満タンです" };
+      this.koban -= this.shop.kanroPrice;
+      this.drawsLeft = this.startDraws;
+      this.shop.kanro = false; // 1回限り
+      return { ok: true };
+    }
+    // ステージ間のツモ回復量: 基礎3 + 粘り(メタ)/Lv + 雪女+2。直前がボスなら+3のマイルストーン回復。
+    stageRecovery(clearedWasBoss) {
+      return 3 + this.metaLvl("nebari") + yokaiFlag(this.yokai, "recovery", "sum") + (clearedWasBoss ? 3 : 0);
+    }
+    leaveShop() {
+      if (this.phase !== "shop") return { ok: false };
+      const clearedWasBoss = !!roundDefFor(this.roundIndex).boss; // いま倒したステージ
+      this.roundIndex++;
+      // ★D25: ツモは持ち越し＋一定回復のみ（上限=開始値）。ここがラン全体の消耗経済の心臓部。
+      this.drawsLeft = Math.min(this.startDraws, this.drawsLeft + this.stageRecovery(clearedWasBoss));
+      this.startRound();
+      return { ok: true };
+    }
+    medalsEarned() {
+      let m = this.roundsCleared;
+      for (let i = 0; i < this.roundsCleared; i++) if (roundDefFor(i).boss) m += 2;
+      if (this.phase === "won") m += 5;
+      return m;
+    }
+  }
+
+  return {
+    YOKAI, YOKAI_IDS, SUITS, META_UPGRADES, META_IDS, metaNextCost,
+    tileLabelCode, computeAgari, makeStartingDeck, makeRounds, roundDefFor, shuffle, Game,
+    CAMPAIGN_LENGTH: CAMPAIGN_ROUNDS.length,
+    Hand: MJHand,
+  };
+});
