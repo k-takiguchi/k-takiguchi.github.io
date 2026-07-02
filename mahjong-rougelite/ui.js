@@ -228,9 +228,15 @@
       return tileHtml(c, i, "tsumo", extra);
     }).join("");
     // ★D24: 鳴き候補ボタン（ポン/チー）
+    // ★D35: チーは同一面子ラベルでも消費する手牌が異なる別選択肢になり得るため、消費手牌を併記して区別可能にする
     const calls = game.callOptions();
     const callHtml = calls.length
-      ? `<div class="call-row">${calls.map((o, k) => `<button class="btn small call-btn" data-call="${k}">${o.label}</button>`).join("")}</div>`
+      ? `<div class="call-row">${calls.map((o, k) => {
+          const useNote = o.type === "chi"
+            ? `<span class="call-use">手牌 ${o.use.map((c) => MJ.tileLabelCode(c)).join("・")}</span>`
+            : "";
+          return `<button class="btn small call-btn" data-call="${k}">${o.label}${useNote}</button>`;
+        }).join("")}</div>`
       : "";
     $("tsumo").innerHTML = `<span class="tsumo-label">ツモ${game.tsumo.length}枚</span>${tiles}${callHtml}`;
   }

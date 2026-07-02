@@ -133,6 +133,8 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .open-meld .meld-tile { font-size: 13px; font-weight: 800; color: #6a6555; background: var(--card); border-radius: 5px; padding: 2px 4px; }
 .call-row { width: 100%; display: flex; gap: 6px; justify-content: center; margin-top: 4px; flex-wrap: wrap; }
 .call-btn { background: linear-gradient(135deg, var(--purple), #4d3f73); }
+/* ★D35: チー候補ボタンの消費手牌を小さく併記（同一面子ラベルの選択肢を区別可能に） */
+.call-btn .call-use { display: block; font-size: 9px; font-weight: 600; color: #d8d1ea; margin-top: 2px; }
 .open-note { font-size: 10px; color: var(--vermilion); }
 .agari-banner .big.limit { text-shadow: 0 0 10px rgba(217, 164, 65, .6); }
 .btn.discard { background: linear-gradient(135deg, var(--green), #37624c); }
