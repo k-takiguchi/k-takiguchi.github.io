@@ -51,7 +51,6 @@
     kanadama:     { name: "金霊", face: "💴", rarity: 2, price: 6, desc: "ラウンドクリアの小判報酬 ×2", flags: { rewardMult: 2 } },
     fukusuke:     { name: "福助", face: "🎎", rarity: 1, price: 4, desc: "ラウンド開始時 小判+3", flags: { kobanOnRound: 3 } },
     senrigan:     { name: "千里眼", face: "🔮", rarity: 2, price: 6, desc: "待ち牌の残り枚数に、まだ山に出ていない捨て牌分も含めて見える", flags: { countWaits: true } },
-    furoshiki:    { name: "風呂敷お化け", face: "🎒", rarity: 2, price: 7, desc: "妖怪枠 +2（自分が1枠使うので実質+1、最大10）", flags: { extraSlot: 2 } },
   };
   const YOKAI_IDS = Object.keys(YOKAI);
   function yokaiFlag(owned, key, reducer) {
@@ -234,12 +233,14 @@
       this.roundIndex = 0;
       this.lossNegateUsed = 0;
       this.teaPrice = 4; // お茶(ツモ+3)の価格。ラン中はリセットせず購入のたびに+1
+      this.extraSlots = 0; // 風呂敷(妖怪枠+1)の購入数 ★D29
+      this.furoshikiPrice = 8; // 風呂敷の価格。購入のたびに+4
       this.phase = "round";
       this.startRound();
     }
     currentRound() { return roundDefFor(this.roundIndex); }
-    // 妖怪枠: 基礎(メタ強化込み) + 妖怪「風呂敷お化け」等のextraSlotフラグ。上限10。
-    get yokaiSlots() { return Math.min(10, this._baseSlots + yokaiFlag(this.yokai, "extraSlot", "sum")); }
+    // 妖怪枠: 基礎(メタ強化込み) + 消費アイテム「風呂敷」の購入数(★D29)。上限10。
+    get yokaiSlots() { return Math.min(10, this._baseSlots + (this.extraSlots || 0)); }
     isLastCampaignStage() { return this.mode === "campaign" && this.roundIndex >= CAMPAIGN_ROUNDS.length - 1; }
 
     startRound() {
@@ -530,7 +531,9 @@
       const offers = this._weightedYokaiPool(pool);
       // ★D25: ツモ回復アイテム。お茶(+3)は常設(値上がり式)、甘露(全回復)は25%で出現。
       const hasKanro = this.rng() < 0.25;
-      this.shop = { yokai: offers, tea: true, kanro: hasKanro, kanroPrice: 10 };
+      // ★D29: 風呂敷(妖怪枠+1)は30%で入荷。枠が上限(10)なら並ばない。
+      const hasFuroshiki = this.rng() < 0.30 && this.yokaiSlots < 10;
+      this.shop = { yokai: offers, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki };
     }
     reroll() {
       if (this.phase !== "shop") return { ok: false };
@@ -582,6 +585,17 @@
       this.koban -= this.shop.kanroPrice;
       this.drawsLeft = this.startDraws;
       this.shop.kanro = false; // 1回限り
+      return { ok: true };
+    }
+    // ★D29: 風呂敷＝妖怪枠+1の消費アイテム（旧・妖怪「風呂敷お化け」は自身が枠を使い実質±0だったため転換）
+    buyFuroshiki() {
+      if (this.phase !== "shop" || !this.shop.furoshiki) return { ok: false };
+      if (this.yokaiSlots >= 10) return { ok: false, message: "妖怪枠は上限です" };
+      if (this.koban < this.furoshikiPrice) return { ok: false, message: "小判が足りません" };
+      this.koban -= this.furoshikiPrice;
+      this.furoshikiPrice += 4;
+      this.extraSlots += 1;
+      this.shop.furoshiki = false; // 1訪問1回
       return { ok: true };
     }
     // ステージ間のツモ回復量: 基礎3 + 粘り(メタ)/Lv + 雪女+2。直前がボスなら+3のマイルストーン回復。
