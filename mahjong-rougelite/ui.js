@@ -167,7 +167,10 @@
 
   function renderPeek() {
     const p = game.peekNext();
-    $("peek").innerHTML = p.length ? `👁 山の次 → ` + p.map((c) => `<b>${MJ.tileLabelCode(c)}</b>`).join(" ") : "";
+    // ★D32 ドラ猫: 今ラウンドのドラを表示
+    const dora = game.yokai.includes("doraneko") ? `<span class="dora-ind">🐱 ドラ <b>${H.tileLabel(game.doraTile)}</b></span>` : "";
+    const peek = p.length ? `👁 山の次 → ` + p.map((c) => `<b>${MJ.tileLabelCode(c)}</b>`).join(" ") : "";
+    $("peek").innerHTML = [dora, peek].filter(Boolean).join("　");
   }
 
   // 翻・符・限度名の表示ラベル（★D22）

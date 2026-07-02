@@ -71,6 +71,7 @@ html, body {
 /* ---- 先読み ---- */
 .peek { min-height: 20px; font-size: 11px; color: #7d7660; text-align: center; }
 .peek b { color: var(--indigo); }
+.dora-ind { display: inline-block; background: #fdf1e0; border: 1.5px solid var(--gold); border-radius: 8px; padding: 1px 8px; font-weight: 800; color: #9a6b1a; }
 
 /* ---- プレビュー ---- */
 .preview { text-align: center; min-height: 40px; margin: 2px 0 6px; }

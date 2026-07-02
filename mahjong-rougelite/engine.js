@@ -68,6 +68,13 @@
     // ---- ★D31 追加解放妖怪（2体）----
     tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 20, minStage: 7 } },
     tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "役満・数え役満以上のアガリで 点数×1.5", unlock: { cost: 35, minStage: 12 } },
+    // ---- ★D32 追加解放妖怪（6体: システム/サポート/経済/役満支援）----
+    doraneko:     { name: "ドラ猫", face: "🐱", rarity: 3, price: 8, desc: "毎ラウンド、ランダムな牌1種がドラになる（手の中の1枚につき+1翻）", unlock: { cost: 20, minStage: 6 } },
+    yakousan:     { name: "夜行さん", face: "👺", rarity: 2, price: 6, desc: "么九牌だけのアガリ(混老頭)で +3翻", unlock: { cost: 15, minStage: 7 } },
+    itsumade:     { name: "以津真天", face: "🦅", rarity: 2, price: 7, desc: "ステージ間のツモ回復 +3", unlock: { cost: 25, minStage: 8 }, flags: { recovery: 3 } },
+    takarabune:   { name: "宝船", face: "🚢", rarity: 3, price: 8, desc: "アガリ時、所持小判1枚につき +100点", unlock: { cost: 25, minStage: 9 } },
+    fuujin:       { name: "風神", face: "🌀", rarity: 3, price: 9, desc: "風牌の刻子1つにつき +2翻", unlock: { cost: 25, minStage: 10 } },
+    kudan:        { name: "件", face: "🐄", rarity: 3, price: 9, desc: "役満テンパイ中、ツモに待ち牌を確定で1枚混ぜる（各ラウンド1回）", unlock: { cost: 30, minStage: 10 }, flags: { yakumanDraw: 1 } },
   };
   const YOKAI_IDS = Object.keys(YOKAI);
   function yokaiFlag(owned, key, reducer) {
@@ -152,6 +159,23 @@
         if (hasBaWindTrip) { han += 2; note("風狸+2翻"); }
       }
       if (owned.includes("amanojaku") && (hasYaku("混全帯幺九") || hasYaku("純全帯幺九"))) { han += 2; note("天邪鬼+2翻"); }
+      // --- ★D32 追加解放妖怪の翻加算 ---
+      if (owned.includes("doraneko") && st.doraTile != null) {
+        // ドラ枚数 = 手牌側counts + 晒し面子（刻子=3枚 / 順子=範囲内なら1枚）
+        let dora = counts[st.doraTile] || 0;
+        for (const m of (st.openMelds || [])) {
+          if (m.t === "trip" && m.i === st.doraTile) dora += 3;
+          else if (m.t === "seq" && st.doraTile >= m.i && st.doraTile <= m.i + 2) dora += 1;
+        }
+        if (dora > 0) { han += dora; note(`ドラ×${dora}: +${dora}翻`); }
+      }
+      if (owned.includes("yakousan") && hasYaku("混老頭")) { han += 3; note("夜行さん+3翻"); }
+      if (owned.includes("fuujin")) {
+        let windTrips = 0;
+        for (let i = 27; i <= 30; i++) if (counts[i] >= 3) windTrips++;
+        for (const m of (st.openMelds || [])) if (m.t === "trip" && m.i >= 27 && m.i <= 30) windTrips++;
+        if (windTrips > 0) { han += 2 * windTrips; note(`風神+${2 * windTrips}翻`); }
+      }
 
       // --- 符加算（満貫以上では自然に無意味化＝インフレしない。九十九神より先に確定させる） ---
       let fuAdd = 0;
@@ -182,6 +206,7 @@
         case "nurarihyon": { const a = st.totalAgari || 0; if (a > 0) { flat += 200 * a; note(`ぬらりひょん: +${200 * a}点`); } } break;
         case "fukunokami": { const m = Math.floor((st.koban || 0) / 10) * 500; if (m > 0) { flat += m; note(`福の神: +${m}点`); } } break;
         case "teruterubozu": { const d = st.drawsLeft || 0; if (d > 0) { flat += 200 * d; note(`てるてる坊主: +${200 * d}点`); } } break;
+        case "takarabune": { const k = st.koban || 0; if (k > 0) { flat += 100 * k; note(`宝船: +${100 * k}点`); } } break;
         case "raiju": if (dragonTrip) { times.push(2); note("雷獣: 点数×2"); } break;
       }
     }
@@ -294,6 +319,8 @@
     startRound() {
       this.mulligansLeft = yokaiFlag(this.yokai, "mulligan", "sum");    // すねこすり
       this.guaranteedLeft = yokaiFlag(this.yokai, "guaranteedDraw", "sum"); // 見上げ入道
+      this.kudanLeft = yokaiFlag(this.yokai, "yakumanDraw", "sum"); // ★D32 件
+      this.doraTile = Math.floor(this.rng() * 34); // ★D32 ドラ牌（ドラ猫所持時のみ効果・表示）
       this.freeTsumoRerollLeft = yokaiFlag(this.yokai, "freeTsumoReroll", "sum"); // 化け草鞋
       this.koban += yokaiFlag(this.yokai, "kobanOnRound", "sum"); // 福助
       this.wall = shuffle(this.deck, this.rng);
@@ -363,7 +390,7 @@
       return this.wall.slice(-n).reverse();
     }
     _scoreState() {
-      return { yokai: this.yokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds };
+      return { yokai: this.yokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds, doraTile: this.doraTile };
     }
     // 化け草鞋: ツモだけ無料で引き直す（ツモ回数を消費しない・回数制限）
     rerollTsumo() {
@@ -494,6 +521,23 @@
       if (this.drawsLeft <= 0) { const out = { ok: false, message: "ツモ回数がありません" }; this._handleDrawsOut(out); return out; }
       for (const c of this.tsumo) this.discardPile.push(c);
       const drawn = this._drawN(this._tsumoCount());
+      // ★D32 件: 役満テンパイ中は「役満になる待ち牌」を確定で混ぜる（1ラウンド1回・見上げ入道より優先）
+      if (this.kudanLeft > 0) {
+        const st = this._scoreState();
+        const ykWaits = this.handWaits().filter((t) => {
+          const r = computeAgari(this.hand.concat([MJHand.indexToCode(t)]), st);
+          return r.agari && (r.yakumanCount >= 1 || r.han >= 13);
+        });
+        if (ykWaits.length && !drawn.some((c) => ykWaits.includes(MJHand.codeToIndex(c)))) {
+          const wi = this.wall.findIndex((c) => ykWaits.includes(MJHand.codeToIndex(c)));
+          if (wi >= 0) {
+            const wtile = this.wall.splice(wi, 1)[0];
+            this.discardPile.push(drawn.pop());
+            drawn.push(wtile);
+            this.kudanLeft--;
+          }
+        }
+      }
       // 見上げ入道: テンパイ中は待ち牌を1枚確定で混ぜる（1ラウンド回数制限）
       if (this.guaranteedLeft > 0) {
         const waits = this.handWaits();
