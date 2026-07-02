@@ -19,7 +19,7 @@
   let lastEarned = 0;
   let selectedMode = "campaign"; // タイトルで選ぶ次ランのモード
   let helpOpen = false; // 遊び方（チュートリアル）表示中
-  let yokaiPanelOpen = false; // 所持妖怪の効果一覧パネル（★スマホでもタップで見られるように）
+  let yokaiPanelId = null; // タップで選択中の妖怪id（その1体の効果だけ表示・スマホ対応）
 
   const $ = (id) => document.getElementById(id);
 
@@ -137,17 +137,15 @@
 
   function renderYokai() {
     const bar = $("yokai-bar");
-    // ★所持妖怪はタップで効果一覧を開閉（hoverの無いスマホ対応）
+    // ★妖怪をタップすると「その1体」の効果を表示（hoverの無いスマホ対応）。同じ妖怪を再タップで閉じる。
+    if (yokaiPanelId && !game.yokai.includes(yokaiPanelId)) yokaiPanelId = null; // 手放した妖怪の表示を残さない
     bar.innerHTML = (game.yokai.length === 0
       ? `<span class="yokai-empty">まだ妖怪がいません（ショップで仲間に）</span>`
-      : game.yokai.map((id) => { const y = MJ.YOKAI[id]; return `<div class="yokai" data-yokaipanel="1" title="${y.desc}"><span class="rar">${"★".repeat(y.rarity)}</span><span class="face">${y.face}</span><span class="yname">${y.name}</span></div>`; }).join(""));
+      : game.yokai.map((id) => { const y = MJ.YOKAI[id]; const selCls = id === yokaiPanelId ? " selected" : ""; return `<div class="yokai${selCls}" data-yokaipanel="${id}" title="${y.desc}"><span class="rar">${"★".repeat(y.rarity)}</span><span class="face">${y.face}</span><span class="yname">${y.name}</span></div>`; }).join(""));
     bar.innerHTML += `<span class="slots">枠 ${game.yokai.length}/${game.yokaiSlots}</span>`;
-    if (yokaiPanelOpen && game.yokai.length > 0) {
-      const rows = game.yokai.map((id) => {
-        const y = MJ.YOKAI[id];
-        return `<div class="yokai-detail"><span class="face">${y.face}</span><b>${y.name}</b> <span class="rar-inline">${"★".repeat(y.rarity)}</span><span class="ydesc">${y.desc}</span></div>`;
-      }).join("");
-      bar.innerHTML += `<div class="yokai-panel">${rows}<div class="yokai-panel-hint">（妖怪をタップで閉じる）</div></div>`;
+    if (yokaiPanelId) {
+      const y = MJ.YOKAI[yokaiPanelId];
+      bar.innerHTML += `<div class="yokai-panel"><div class="yokai-detail"><span class="face">${y.face}</span><b>${y.name}</b> <span class="rar-inline">${"★".repeat(y.rarity)}</span><span class="ydesc">${y.desc}</span></div></div>`;
     }
   }
 
@@ -327,7 +325,7 @@
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel]");
     if (!t) return;
-    if (t.dataset.yokaipanel) { yokaiPanelOpen = !yokaiPanelOpen; renderYokai(); return; }
+    if (t.dataset.yokaipanel) { yokaiPanelId = (yokaiPanelId === t.dataset.yokaipanel) ? null : t.dataset.yokaipanel; renderYokai(); return; }
     if (t.dataset.help) { helpOpen = true; renderTitle(); return; }
     if (t.dataset.helpclose) { helpOpen = false; renderTitle(); return; }
     if (t.dataset.metabuy) return buyMeta(t.dataset.metabuy);

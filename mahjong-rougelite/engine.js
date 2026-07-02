@@ -51,7 +51,7 @@
     kanadama:     { name: "金霊", face: "💴", rarity: 2, price: 6, desc: "ラウンドクリアの小判報酬 ×2", flags: { rewardMult: 2 } },
     fukusuke:     { name: "福助", face: "🎎", rarity: 1, price: 4, desc: "ラウンド開始時 小判+3", flags: { kobanOnRound: 3 } },
     senrigan:     { name: "千里眼", face: "🔮", rarity: 2, price: 6, desc: "待ち牌の残り枚数に、まだ山に出ていない捨て牌分も含めて見える", flags: { countWaits: true } },
-    furoshiki:    { name: "風呂敷お化け", face: "🎒", rarity: 2, price: 7, desc: "妖怪枠 +1（最大10）", flags: { extraSlot: 1 } },
+    furoshiki:    { name: "風呂敷お化け", face: "🎒", rarity: 2, price: 7, desc: "妖怪枠 +2（自分が1枠使うので実質+1、最大10）", flags: { extraSlot: 2 } },
   };
   const YOKAI_IDS = Object.keys(YOKAI);
   function yokaiFlag(owned, key, reducer) {
