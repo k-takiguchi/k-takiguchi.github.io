@@ -170,7 +170,14 @@
       const names = { 1: "役満", 2: "ダブル役満", 3: "トリプル役満" };
       return { score: 32000 * yakumanCount, limit: names[yakumanCount] || yakumanCount + "倍役満" };
     }
-    if (han >= 13) return { score: 32000, limit: "数え役満" };
+    if (han >= 13) {
+      // ★D27: 数え役満以降も伸び続ける階段（ユーザー提案）。
+      // 13-15翻=数え役満(4倍満=32000) / 16-17翻=5倍満(40000) / 18-19翻=6倍満(48000) / 以降2翻ごとに+1倍満(+8000)。
+      // 敵HPが無限に伸びる無限夜行で、解放妖怪による翻のインフレがそのまま火力になる。
+      if (han <= 15) return { score: 32000, limit: "数え役満" };
+      const tier = 5 + Math.floor((han - 16) / 2);
+      return { score: 8000 * tier, limit: tier + "倍満" };
+    }
     if (han >= 11) return { score: 24000, limit: "三倍満" };
     if (han >= 8) return { score: 16000, limit: "倍満" };
     if (han >= 6) return { score: 12000, limit: "跳満" };
