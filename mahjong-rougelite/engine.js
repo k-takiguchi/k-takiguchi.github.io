@@ -51,6 +51,10 @@
     kanadama:     { name: "金霊", face: "💴", rarity: 2, price: 6, desc: "ラウンドクリアの小判報酬 ×2", flags: { rewardMult: 2 } },
     fukusuke:     { name: "福助", face: "🎎", rarity: 1, price: 4, desc: "ラウンド開始時 小判+3", flags: { kobanOnRound: 3 } },
     senrigan:     { name: "千里眼", face: "🔮", rarity: 2, price: 6, desc: "待ち牌の残り枚数に、まだ山に出ていない捨て牌分も含めて見える", flags: { countWaits: true } },
+    // ---- ★D31 追加妖怪（基本3体）----
+    fuuri:        { name: "風狸", face: "🍃", rarity: 2, price: 6, desc: "場風の刻子で さらに+2翻" },
+    yamabiko:     { name: "山彦", face: "⛰️", rarity: 1, price: 4, desc: "鳴く(ポン/チー)たび 小判+2", flags: { kobanOnCall: 2 } },
+    amanojaku:    { name: "天邪鬼", face: "😝", rarity: 2, price: 6, desc: "チャンタ/ジュンチャンのアガリで +2翻" },
     // ---- ★D30 メダル解放妖怪（妖怪茶屋の図鑑で解放 → minStage以降のショップに出現）----
     // 翻インフレ特化: D27の数え役満階段(16翻=5倍満/18翻=6倍満/+2翻毎+8000)を活かし、無限夜行の深部を攻略可能にする。
     onibi:        { name: "鬼火", face: "🔥", rarity: 2, price: 6, desc: "字牌の刻子1つにつき +1翻", unlock: { cost: 12, minStage: 4 } },
@@ -61,6 +65,9 @@
     umibozu:      { name: "海坊主", face: "🌊", rarity: 3, price: 8, desc: "清一色のアガリで さらに+3翻", unlock: { cost: 25, minStage: 8 } },
     hakutaku:     { name: "白澤", face: "🐂", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 30, minStage: 9 } },
     ryujin:       { name: "龍神", face: "🐲", rarity: 3, price: 10, desc: "13翻以上のアガリで さらに+4翻", unlock: { cost: 40, minStage: 10 } },
+    // ---- ★D31 追加解放妖怪（2体）----
+    tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 20, minStage: 7 } },
+    tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "役満・数え役満以上のアガリで 点数×1.5", unlock: { cost: 35, minStage: 12 } },
   };
   const YOKAI_IDS = Object.keys(YOKAI);
   function yokaiFlag(owned, key, reducer) {
@@ -139,15 +146,14 @@
       if (owned.includes("ungaikyo") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 3; note("雲外鏡+3翻"); }
       if (owned.includes("umibozu") && hasYaku("清一色")) { han += 3; note("海坊主+3翻"); }
       if (owned.includes("hakutaku")) { han += 2; note("白澤+2翻"); }
+      // --- ★D31 追加妖怪の翻加算 ---
+      if (owned.includes("fuuri") && st.baWind != null) {
+        const hasBaWindTrip = counts[st.baWind] >= 3 || (st.openMelds || []).some((m) => m.t === "trip" && m.i === st.baWind);
+        if (hasBaWindTrip) { han += 2; note("風狸+2翻"); }
+      }
+      if (owned.includes("amanojaku") && (hasYaku("混全帯幺九") || hasYaku("純全帯幺九"))) { han += 2; note("天邪鬼+2翻"); }
 
-      // --- 翻の底上げ/パリティ ---
-      if (owned.includes("bakedanuki") && han < 2) { han = 2; note("化け狸: 最低2翻"); }
-      if (owned.includes("karakasa") && (han % 2 === 1)) { han += 1; note("唐傘+1翻"); }
-      // --- ★D30 段階発動（他の加算が済んだ後に判定） ---
-      if (owned.includes("shutendoji") && han >= 5) { han += 2; note("酒呑童子+2翻"); }
-      if (owned.includes("ryujin") && han >= 13) { han += 4; note("龍神+4翻"); }
-
-      // --- 符加算（満貫以上では自然に無意味化＝インフレしない） ---
+      // --- 符加算（満貫以上では自然に無意味化＝インフレしない。九十九神より先に確定させる） ---
       let fuAdd = 0;
       for (const id of owned) {
         switch (id) {
@@ -157,6 +163,16 @@
         }
       }
       if (fuAdd > 0) fu = Math.ceil((fu + fuAdd) / 10) * 10;
+
+      // --- ★D31 九十九神（最終符を参照するため符加算の後） ---
+      if (owned.includes("tsukumogami") && fu >= 50) { han += 3; note("九十九神+3翻"); }
+
+      // --- 翻の底上げ/パリティ ---
+      if (owned.includes("bakedanuki") && han < 2) { han = 2; note("化け狸: 最低2翻"); }
+      if (owned.includes("karakasa") && (han % 2 === 1)) { han += 1; note("唐傘+1翻"); }
+      // --- ★D30 段階発動（他の加算が済んだ後に判定） ---
+      if (owned.includes("shutendoji") && han >= 5) { han += 2; note("酒呑童子+2翻"); }
+      if (owned.includes("ryujin") && han >= 13) { han += 4; note("龍神+4翻"); }
     }
 
     // --- フラット加点（役満にも乗る） ---
@@ -172,6 +188,8 @@
     // 縁起物(メタ): アガリの点数+300/Lv
     if (st.engimono) { flat += 300 * st.engimono; note(`縁起物: +${300 * st.engimono}点`); }
     if (owned.includes("kitsunebi")) { times.push(1.5); note("狐火: 点数×1.5"); }
+    // ★D31 玉藻前: 役満級のアガリをさらに伸ばす（深部の到達深度を延長）
+    if (owned.includes("tamamonomae") && (isYakuman || han >= 13)) { times.push(1.5); note("玉藻前: 点数×1.5"); }
 
     const hf = MJHand.scoreHanFu(han, fu, res.yakumanCount);
     let score = hf.score + flat;
@@ -427,6 +445,7 @@
       this.tsumo.splice(opt.tsumoIdx, 1); // 鳴いた牌をプールから取得
       this.melds.push({ t: opt.type === "pon" ? "trip" : "seq", i: opt.meldTile, open: true });
       this.mustDiscard = true; // 1枚捨てるまで他の操作は不可
+      this.koban += yokaiFlag(this.yokai, "kobanOnCall", "sum"); // ★D31 山彦
       return { ok: true, label: opt.label };
     }
     // 鳴き後の1枚捨て → ツモプールを無料で全リフレッシュ（テンポの前借り）
