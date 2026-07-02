@@ -515,10 +515,79 @@
       if (!best) return { agari: false };
       return Object.assign({ winTile: wtile }, best);
     }
+    // ★D34 手牌+ツモを自由に組み替えれば（役ありで）アガれる可能性が残っているか。
+    // 交換は無料なので「現在の並び」ではなく18枚(手牌+ツモ)から必要な14枚を選べるかで判定する。
+    // ツモ切れ時はこの判定で「アガリ確定不能」を確認してからゲームオーバーにする。
+    _winReachable() {
+      if (this.mustDiscard) return false;
+      const combined = this.hand.concat(this.tsumo);
+      const need = this.expectedConcealed + 1; // 和了に使う暗黙部分の枚数（＝手牌+アガリ牌）
+      if (combined.length < need) return false;
+      const st = this._scoreState();
+      const seen = new Set();
+      let found = false;
+      const pick = (start, chosen) => {
+        if (found) return;
+        if (chosen.length === need) {
+          const tiles = chosen.map((i) => combined[i]);
+          const sig = tiles.slice().sort().join(",");
+          if (seen.has(sig)) return;
+          seen.add(sig);
+          if (computeAgari(tiles, st).agari) found = true;
+          return;
+        }
+        // 残り本数が足りる範囲だけ探索（早期枝刈り）
+        for (let i = start; i <= combined.length - (need - chosen.length) && !found; i++) {
+          chosen.push(i); pick(i + 1, chosen); chosen.pop();
+        }
+      };
+      pick(0, []);
+      return found;
+    }
+    // ★D34 手牌+ツモから最高得点の和了形を見つけ、その形に整列する（手牌13＋アガリ牌をツモ先頭へ）。
+    // 「最後のツモ」で組み替えれば和了できる時の確定アガリ用。存在しなければ何もしない。
+    arrangeWin() {
+      if (this.mustDiscard || this.phase !== "round") return { ok: false };
+      const combined = this.hand.concat(this.tsumo);
+      const need = this.expectedConcealed + 1;
+      if (combined.length < need) return { ok: false };
+      const st = this._scoreState();
+      const seen = new Set();
+      let best = null; // { tiles(need枚), winIdxInTiles, score }
+      const evalSubset = (tiles) => {
+        const sig = tiles.slice().sort().join(",");
+        if (seen.has(sig)) return;
+        seen.add(sig);
+        // 各牌を「アガリ牌（末尾）」候補として最高得点を探す
+        const uniq = [...new Set(tiles)];
+        for (const w of uniq) {
+          const rest = tiles.slice(); rest.splice(rest.indexOf(w), 1);
+          const r = computeAgari(rest.concat([w]), st);
+          if (r.agari && (!best || r.score > best.score)) best = { concealed: rest, win: w, score: r.score };
+        }
+      };
+      const pick = (start, chosen) => {
+        if (chosen.length === need) { evalSubset(chosen.map((i) => combined[i])); return; }
+        for (let i = start; i <= combined.length - (need - chosen.length); i++) { chosen.push(i); pick(i + 1, chosen); chosen.pop(); }
+      };
+      pick(0, []);
+      if (!best) return { ok: false };
+      // combined の残り（未使用）を算出してツモに回す
+      const used = best.concealed.concat([best.win]);
+      const leftovers = combined.slice();
+      for (const t of used) leftovers.splice(leftovers.indexOf(t), 1);
+      this.hand = sortCodes(best.concealed);
+      this.tsumo = sortCodes([best.win].concat(leftovers));
+      return { ok: true, score: best.score };
+    }
     // ツモ5枚を捨てて新たに5枚引く（＝1手＝資源）
     drawTsumo() {
       if (this.phase !== "round") return { ok: false };
-      if (this.drawsLeft <= 0) { const out = { ok: false, message: "ツモ回数がありません" }; this._handleDrawsOut(out); return out; }
+      if (this.drawsLeft <= 0) {
+        // ★D34 ツモ切れ。まだ手牌+ツモを組み替えてアガれるならゲームオーバーにせず、組み替えを促す。
+        if (this._winReachable()) return { ok: false, lastChance: true, message: "最後のツモです。手牌とツモを組み替えてアガリを狙えます" };
+        const out = { ok: false, message: "ツモ回数がありません" }; this._handleDrawsOut(out); return out;
+      }
       for (const c of this.tsumo) this.discardPile.push(c);
       const drawn = this._drawN(this._tsumoCount());
       // ★D32 件: 役満テンパイ中は「役満になる待ち牌」を確定で混ぜる（1ラウンド1回・見上げ入道より優先）
@@ -555,7 +624,7 @@
       this.koban += yokaiFlag(this.yokai, "kobanOnDraw", "sum"); // 雨降小僧
       this.drawsLeft--;
       const out = { ok: true };
-      if (this.drawsLeft <= 0 && !this.agariInfo().agari) this._handleDrawsOut(out);
+      if (this.drawsLeft <= 0 && !this._winReachable()) this._handleDrawsOut(out);
       return out;
     }
     _handleDrawsOut(out) {
@@ -583,7 +652,7 @@
         this._finishRoundWin(out);
       } else {
         this.dealNewHand(); // 新しい手牌13＋ツモ5で続行
-        if (this.drawsLeft <= 0 && !this.agariInfo().agari) this._handleDrawsOut(out);
+        if (this.drawsLeft <= 0 && !this._winReachable()) this._handleDrawsOut(out);
       }
       return out;
     }

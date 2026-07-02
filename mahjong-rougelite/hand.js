@@ -16,9 +16,11 @@
   const SUIT_NAME = { m: "萬", p: "筒", s: "索" };
   // 么九牌(1・9・字)のindex
   const YAOCHU = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
-  // ★D23(B1②): 全字牌が役牌。風牌(27-30)は全て1翻、その道中の「場風」なら2翻。三元牌(31-33)は1翻。
-  // YAKUHAI = 「雀頭にすると平和が消え・符+2が付く牌」= 全字牌（南西北の死に牌化を解消）。
+  // 字牌の呼称（表示用）。役の有無は下記 isYakuhaiIdx で判定する。
   const YAKUHAI = { 27: "東", 28: "南", 29: "西", 30: "北", 31: "白", 32: "發", 33: "中" };
+  // ★D34(本家準拠): 役牌＝三元牌(31-33) と その道中の「場風」のみ。他の風(客風)は役なし・雀頭符なし・平和もブロックしない。
+  // （ソロに自風は無いので、場風はダブ風相当＝刻子2翻。B1で入れた「全風牌1翻」は麻雀経験者に違和感があるため撤回。）
+  function isYakuhaiIdx(i, baWind) { return i >= 31 || i === baWind; }
 
   function codeToIndex(code) {
     const s = code[0], r = parseInt(code.slice(1), 10);
@@ -159,7 +161,7 @@
     for (const m of (openMelds || [])) {
       if (m.t === "trip") fu += YAOCHU.includes(m.i) ? 4 : 2; // 明刻符
     }
-    if (YAKUHAI[dec.pair]) fu += 2; // 役牌雀頭
+    if (isYakuhaiIdx(dec.pair, ctx && ctx.baWind)) fu += 2; // 役牌雀頭（三元牌・場風のみ）
     fu += waitFuOf(dec, ctx && ctx.winTile);
     return Math.ceil(fu / 10) * 10;
   }
@@ -325,7 +327,7 @@
       if (allTrips.length === 4) yaku.push({ name: "対々和", han: 2 }); // ★D24: 鳴きで到達可能に
       if (trips.length >= 3) yaku.push({ name: "三暗刻", han: 2 }); // 暗刻3つ（晒した明刻は数えない）
       // 平和: 門前限定・全順子・非役牌雀頭・両面待ち
-      if (menzen && seqs.length === 4 && !YAKUHAI[dec.pair] && isRyanmenWait(dec, ctx && ctx.winTile)) yaku.push({ name: "平和", han: 1 });
+      if (menzen && seqs.length === 4 && !isYakuhaiIdx(dec.pair, ctx && ctx.baWind) && isRyanmenWait(dec, ctx && ctx.winTile)) yaku.push({ name: "平和", han: 1 });
       if (menzen) {
         const iipeikouPairs = countIipeikouPairs(seqs);
         if (iipeikouPairs >= 2) yaku.push({ name: "二盃口", han: 3 });
@@ -338,10 +340,8 @@
       const baWind = ctx && ctx.baWind;
       for (const m of allTrips) {
         if (m.i >= 31) yaku.push({ name: "役牌(" + YAKUHAI[m.i] + ")", han: 1 });
-        else if (m.i >= 27) {
-          if (m.i === baWind) yaku.push({ name: "場風(" + YAKUHAI[m.i] + ")", han: 2 });
-          else yaku.push({ name: "風牌(" + YAKUHAI[m.i] + ")", han: 1 });
-        }
+        else if (m.i >= 27 && m.i === baWind) yaku.push({ name: "場風(" + YAKUHAI[m.i] + ")", han: 2 });
+        // ★D34: 客風(場風以外の風)の刻子は役なし（暗刻符は付く／四喜和・字一色・混老頭には引き続き寄与）
       }
       if (dragonTrips === 2 && dec.pair >= 31 && dec.pair <= 33) yaku.push({ name: "小三元", han: 2 });
       const chanta = chantaInfo(dec, allMelds);

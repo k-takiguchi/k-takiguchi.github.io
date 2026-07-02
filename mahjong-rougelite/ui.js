@@ -48,7 +48,7 @@
       <h3>💧 ツモ回数＝HP（最重要）</h3>
       <ul>
         <li>ツモ回数は<b>ラン全体で持ち越し</b>。開始15、<b>ステージ間は+3しか回復しない</b>（ボス撃破後は+6）。上限15。</li>
-        <li>0になって手が完成していなければ<b>ゲームオーバー</b>。</li>
+        <li>0になった時、手牌とツモを組み替えてもアガれない場合に<b>ゲームオーバー</b>（最後のツモも判定に含みます）。</li>
         <li>ショップの🍵お茶(+3回復・買うたび値上がり)と✨甘露(全回復・レア入荷)で延命できる。</li>
         <li>つまり<b>速くアガるほど残りツモ＝体力が温存される</b>。</li>
       </ul>
@@ -65,7 +65,7 @@
       <h3>🌪 場風ローテーション</h3>
       <ul>
         <li>2戦ごとに東場→南場→西場→北場と巡る（画面上部にバッジ表示）。</li>
-        <li><b>全ての風牌が役牌</b>（刻子1翻）。<b>場風の刻子は2翻</b>。</li>
+        <li>役牌は<b>三元牌と「場風」のみ</b>（本家準拠）。<b>場風の刻子は2翻</b>（ソロなので自風＝場風のダブ扱い）。場風以外の風（客風）は役なしです。</li>
       </ul>
 
       <h3>👻 妖怪（ジョーカー）とお金</h3>
@@ -240,7 +240,11 @@
     const busy = game.mustDiscard;
     const redeal = (!busy && game.mulligansLeft > 0) ? `<button class="btn small indigo" data-act="redeal">🔄 手牌引き直し (${game.mulligansLeft})</button>` : "";
     const rerollT = (!busy && game.freeTsumoRerollLeft > 0) ? `<button class="btn small indigo" data-act="rerolltsumo">🔄 ツモ引き直し(無料 x${game.freeTsumoRerollLeft})</button>` : "";
+    // ★D34 ツモ切れでも組み替えれば和了できる場合は「ラストチャンス」を表示（誤ってゲームオーバーに見せない）
+    const lastChance = !busy && game.drawsLeft <= 0 && !info.agari && game._winReachable();
+    const lastChanceHtml = lastChance ? `<div class="last-chance">🔥 最後のツモ！手牌とツモを組み替えればアガれます <button class="btn small gold" data-act="autowin">自動で組む</button></div>` : "";
     $("actions").innerHTML =
+      lastChanceHtml +
       `<button class="btn discard" ${(!busy && game.drawsLeft > 0) ? "" : "disabled"} data-act="draw">🀄 ツモを引く (残${game.drawsLeft})</button>
        <button class="btn play agari" ${info.agari ? "" : "disabled"} data-act="agari">🎉 アガリ</button>${redeal}${rerollT}`;
   }
@@ -359,6 +363,7 @@
     if (t.dataset.act === "draw") return doDraw();
     if (t.dataset.act === "redeal") return doRedeal();
     if (t.dataset.act === "rerolltsumo") return doRerollTsumo();
+    if (t.dataset.act === "autowin") { game.arrangeWin(); setMessage("🀄 最高得点のアガリ形に組みました"); render(); return; }
     if (t.dataset.act === "agari") return doAgari();
     if (t.dataset.buy) {
       if (game.yokai.length >= game.yokaiSlots) { pendingSwapId = t.dataset.buy; render(); return; }
