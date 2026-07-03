@@ -109,6 +109,16 @@ html, body {
 .tile.z { color: var(--purple); }
 .tile.w { color: var(--gold); background: linear-gradient(135deg, #fff8e6, #ffeeba); }
 
+/* ★D42 手牌を1行表示（折り返し廃止・コンパクト化）。縦画面でも面子が途切れず読める。
+   狭い画面ではみ出す時はスワイプ（overflow-x）＝セガMJ方式。ツモ5枚は変更しない。 */
+.hand { flex-wrap: nowrap; overflow-x: auto; gap: 2px; justify-content: safe center; -webkit-overflow-scrolling: touch; min-height: 44px; padding: 4px 6px; }
+.hand .tile { width: 26px; height: 36px; flex: 0 0 auto; border-radius: 6px; }
+.hand .tile .num { font-size: 16px; }
+.hand .tile .suit { font-size: 6px; bottom: 1px; right: 2px; }
+.hand .tile.selected { transform: translateY(-6px); }
+.hand .open-meld { flex: 0 0 auto; margin-right: 6px; padding: 3px 4px; }
+.hand .open-meld .meld-tile { font-size: 11px; padding: 2px 3px; }
+
 /* ---- アクション ---- */
 .actions { display: flex; gap: 10px; justify-content: center; margin-top: 6px; }
 button.btn {
