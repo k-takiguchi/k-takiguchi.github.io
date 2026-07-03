@@ -301,13 +301,25 @@
     if (inTitle) $("overlay").classList.add("hidden");
   }
   function showByPhase() {
+    // ★D38 clearフェーズ中も盤面・ショップは隠す（クリア画面オーバーレイを前面に）
+    const hideBoard = game.phase === "shop" || game.phase === "clear";
     const inShop = game.phase === "shop";
-    ["peek", "preview", "hand", "tsumo", "actions"].forEach((id) => $(id).classList.toggle("hidden", inShop));
+    ["peek", "preview", "hand", "tsumo", "actions"].forEach((id) => $(id).classList.toggle("hidden", hideBoard));
     $("shop").classList.toggle("hidden", !inShop);
   }
 
   function renderOverlay() {
     const ov = $("overlay");
+    // ★D38 ステージクリア画面（撃破→報酬確認→市へ）。決着(won/lost)とは別の「間」。
+    if (game.phase === "clear") {
+      const ci = game.clearInfo || {};
+      ov.className = "overlay clear";
+      const bossFlair = ci.boss ? `<p class="boss-flair">👹 ボス撃破！ 市を出るとツモが多めに回復します</p>` : "";
+      const interestLine = ci.interest > 0 ? `<span class="reward-sub">（基本3 ＋ 利子 ${ci.interest}）</span>` : "";
+      const nextLabel = game.mode === "endless" ? `${game.roundIndex + 2}戦目` : `道中 ${game.roundIndex + 2}/${MJ.CAMPAIGN_LENGTH}`;
+      ov.innerHTML = `<div class="card clear-card"><div class="emoji">🎊</div><h1>${ci.enemyName} を撃破！</h1>${bossFlair}<div class="reward-big">報酬 🪙 +${ci.reward} 小判 ${interestLine}</div><p class="next-note">次は ${nextLabel}</p><button class="btn play gold" data-toshop="1">▶ 妖怪の市へ</button></div>`;
+      return;
+    }
     const ended = game.phase === "won" || game.phase === "lost";
     if (!ended) { ov.className = "overlay hidden"; ov.innerHTML = ""; return; }
     const medalLine = `<div class="earned">獲得メダル 🏅 +${lastEarned}　（所持 ${meta.medals}）</div>`;
@@ -334,7 +346,7 @@
     }
     renderTopBar(); renderYokai();
     if (game.phase === "shop") renderShop();
-    else { renderPeek(); renderBanner(); renderHand(); renderTsumo(); renderActions(); }
+    else if (game.phase !== "clear") { renderPeek(); renderBanner(); renderHand(); renderTsumo(); renderActions(); }
     showByPhase(); renderOverlay();
   }
   function renderBoard() { renderBanner(); renderHand(); renderTsumo(); renderActions(); }
@@ -353,8 +365,9 @@
   function toTitle() { screen = "title"; sel = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop]");
     if (!t) return;
+    if (t.dataset.toshop) { game.enterShop(); setMessage(""); render(); return; } // ★D38 クリア画面→妖怪の市
     if (t.dataset.yokaipanel) { yokaiPanelId = (yokaiPanelId === t.dataset.yokaipanel) ? null : t.dataset.yokaipanel; renderYokai(); return; }
     if (t.dataset.unlockyokai) { unlockYokai(t.dataset.unlockyokai); return; }
     if (t.dataset.help) { helpOpen = true; renderTitle(); return; }

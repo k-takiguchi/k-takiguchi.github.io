@@ -666,7 +666,14 @@
       out.roundCleared = true;
       out.reward = { total: reward, interest };
       if (this.isLastCampaignStage()) { this.phase = "won"; out.runWon = true; } // キャンペーン制覇
-      else { this.enterShop(); out.enteredShop = true; } // 無限モードは制覇せず継続
+      else {
+        // ★D38 ステージクリアの「間」: 即ショップではなく clear フェーズを1枚挟む
+        // （撃破→報酬確認→市へ、というフロー。状態機械の変更なのでUnityにも移植される）
+        const r = this.currentRound();
+        this.clearInfo = { enemyName: r.name, boss: !!r.boss, reward, interest };
+        this.phase = "clear";
+        out.cleared = true;
+      }
     }
 
     // ---- ショップ -----------------------------------------------------------

@@ -169,6 +169,11 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
   box-shadow: 0 10px 40px rgba(0,0,0,.5);
 }
 .overlay h1 { margin: 6px 0; font-size: 26px; }
+.overlay.clear { background: rgba(30,34,56,.72); }
+.clear-card .reward-big { font-size: 20px; font-weight: 900; color: var(--gold); margin: 10px 0; }
+.clear-card .reward-sub { font-size: 12px; font-weight: 700; color: #b6ae98; }
+.clear-card .boss-flair { color: var(--vermilion); font-weight: 800; font-size: 13px; }
+.clear-card .next-note { font-size: 12px; color: #d8d1ea; margin: 6px 0 12px; }
 .overlay.win h1 { color: var(--gold); }
 .overlay.lose h1 { color: var(--vermilion); }
 .overlay p { color: #5a5545; font-size: 13px; line-height: 1.7; }
