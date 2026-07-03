@@ -109,15 +109,18 @@ html, body {
 .tile.z { color: var(--purple); }
 .tile.w { color: var(--gold); background: linear-gradient(135deg, #fff8e6, #ffeeba); }
 
+/* ★D43 鳴き面子は手牌の1行上に独立表示（空なら高さ0） */
+.melds-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; min-height: 0; margin-bottom: 4px; }
+.melds-row:empty { margin: 0; }
+
 /* ★D42 手牌を1行表示（折り返し廃止・コンパクト化）。縦画面でも面子が途切れず読める。
    狭い画面ではみ出す時はスワイプ（overflow-x）＝セガMJ方式。ツモ5枚は変更しない。 */
-.hand { flex-wrap: nowrap; overflow-x: auto; gap: 2px; justify-content: safe center; -webkit-overflow-scrolling: touch; min-height: 44px; padding: 4px 6px; }
-.hand .tile { width: 26px; height: 36px; flex: 0 0 auto; border-radius: 6px; }
-.hand .tile .num { font-size: 16px; }
+.hand { flex-wrap: nowrap; overflow-x: auto; gap: 2px; justify-content: safe center; -webkit-overflow-scrolling: touch; min-height: 52px; padding: 6px; }
+/* 横幅は詰めて全牌を1行に、縦は大きめにしてタップ当たり判定を確保 */
+.hand .tile { width: 26px; height: 46px; flex: 0 0 auto; border-radius: 6px; }
+.hand .tile .num { font-size: 17px; }
 .hand .tile .suit { font-size: 6px; bottom: 1px; right: 2px; }
 .hand .tile.selected { transform: translateY(-6px); }
-.hand .open-meld { flex: 0 0 auto; margin-right: 6px; padding: 3px 4px; }
-.hand .open-meld .meld-tile { font-size: 11px; padding: 2px 3px; }
 
 /* ---- アクション ---- */
 .actions { display: flex; gap: 10px; justify-content: center; margin-top: 6px; }

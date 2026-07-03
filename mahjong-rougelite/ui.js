@@ -212,14 +212,15 @@
   }
 
   function renderHand() {
-    // ★D24: 晒した面子（鳴き）を手牌の左に固定表示
+    // ★D43: 晒した面子（鳴き）は手牌の「1行上」に表示（手牌行を占有しない＝概念牌が読みやすい）
     const meldHtml = game.melds.map((m) => {
       const tiles = m.t === "trip"
         ? [m.i, m.i, m.i]
         : [m.i, m.i + 1, m.i + 2];
       return `<span class="open-meld"><span class="meld-tag">鳴</span>${tiles.map((t) => `<span class="meld-tile">${H.tileLabel(t)}</span>`).join("")}</span>`;
     }).join("");
-    $("hand").innerHTML = meldHtml + game.hand.map((c, i) => tileHtml(c, i, "hand")).join("");
+    $("melds").innerHTML = meldHtml;
+    $("hand").innerHTML = game.hand.map((c, i) => tileHtml(c, i, "hand")).join("");
   }
   function renderTsumo() {
     const info = game.agariInfo();
@@ -302,14 +303,14 @@
   function showScreen() {
     const inTitle = screen === "title";
     $("title").classList.toggle("hidden", !inTitle);
-    ["topbar", "yokai-bar", "peek", "preview", "hand", "tsumo", "actions", "message", "shop"].forEach((id) => $(id).classList.toggle("hidden", inTitle));
+    ["topbar", "yokai-bar", "peek", "preview", "melds", "hand", "tsumo", "actions", "message", "shop"].forEach((id) => $(id).classList.toggle("hidden", inTitle));
     if (inTitle) $("overlay").classList.add("hidden");
   }
   function showByPhase() {
     // ★D38 clearフェーズ中も盤面・ショップは隠す（クリア画面オーバーレイを前面に）
     const hideBoard = game.phase === "shop" || game.phase === "clear";
     const inShop = game.phase === "shop";
-    ["peek", "preview", "hand", "tsumo", "actions"].forEach((id) => $(id).classList.toggle("hidden", hideBoard));
+    ["peek", "preview", "melds", "hand", "tsumo", "actions"].forEach((id) => $(id).classList.toggle("hidden", hideBoard));
     $("shop").classList.toggle("hidden", !inShop);
   }
 
