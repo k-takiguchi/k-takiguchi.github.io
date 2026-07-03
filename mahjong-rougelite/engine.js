@@ -77,6 +77,54 @@
     kudan:        { name: "件", face: "🐄", rarity: 3, price: 9, desc: "役満テンパイ中、ツモに待ち牌を確定で1枚混ぜる（各ラウンド1回）", unlock: { cost: 30, minStage: 10 }, flags: { yakumanDraw: 1 } },
   };
   const YOKAI_IDS = Object.keys(YOKAI);
+
+  // ---- ボス妖怪ギミック（A1: ボスブラインド相当） ---------------------------
+  // 参照: ../design/boss-gimmicks-a1.md
+  const BOSS_GIMMICKS = {
+    omoishi: { name: "重石", desc: "このボス戦は最終翻 -1（役満は対象外）" },
+    kasumi: { name: "紗霧", desc: "ツモが1枚少ない（5→4）" },
+    seijaku: { name: "静寂", desc: "妖怪の翻加算が無効（符・加点・倍率は有効）" },
+    // ★A1 v2 面子無効/役無効（design/boss-gimmicks-a1.md §9）。メカニクス実装済み・stage割当は未（ユーザーレビュー保留）。
+    junfuji: { name: "順封じ", desc: "順子を面子と認めない（刻子＋雀頭のみ）" },
+    kokufuji: { name: "刻封じ", desc: "刻子を認めない（順子＋雀頭のみ）" },
+    heiwafuji: { name: "和封じ", desc: "平和が付く手ではアガれない" },
+    // ★A1 v3 新8種（design/boss-gimmicks-a1.md §10）。無限プールに追加・キャンペーンには自動割当しない。
+    somefuji: { name: "染封じ", desc: "混一色・清一色ではアガれない" },
+    chiitoifuji: { name: "七対子封じ", desc: "七対子ではアガれない" },
+    tanyaofuji: { name: "断么封じ", desc: "断么九ではアガれない" },
+    karesansui: { name: "枯山水", desc: "符が20固定（符加算が乗らない）" },
+    sennichite: { name: "千日手", desc: "直前のアガリと共通の役ではアガれない（門前ツモは除く）" },
+    kechi: { name: "吝嗇", desc: "このボス戦のクリア報酬・利子が半減" },
+    nemuri: { name: "眠り", desc: "所持妖怪のうちランダム1体がこの戦だけ休眠（採点に不参加）" },
+    nopperabou: { name: "のっぺらぼう", desc: "待ち残数表示・手の目ハイライトが無効" },
+  };
+  // 静寂(seijaku)=「妖怪の翻加算を全無効化」は強力なため、百鬼夜行(campaign)の最終ボス(ぬらりひょん)専用。
+  // ★A1 v3: 無限夜行(endless)のボスは静寂を除く全ギミック(v1のkasumi/omoishi + v2の順封じ/刻封じ/和封じ + v3の新8種)を
+  // 決定的な擬似乱数(endlessGimmickFor)でプールから選ぶ。直前の無限ボスと同じidは避ける（design §10-3）。
+  const ENDLESS_POOL = [
+    "kasumi", "omoishi", "junfuji", "kokufuji", "heiwafuji",
+    "somefuji", "chiitoifuji", "tanyaofuji", "karesansui", "sennichite", "kechi", "nemuri", "nopperabou",
+  ];
+  function _mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // 無限ボス(index i)のgimmickを決定的に選ぶ純関数。直前の無限ボス(i-3)と同idなら次候補へずらす。
+  function endlessGimmickFor(i) {
+    const n = ENDLESS_POOL.length;
+    const rnd = _mulberry32(((i + 1) * 2654435761) >>> 0)();
+    let idx = Math.min(n - 1, Math.floor(rnd * n));
+    const prevBossIndex = i - 3;
+    if (prevBossIndex >= CAMPAIGN_ROUNDS.length) {
+      const prevId = endlessGimmickFor(prevBossIndex);
+      if (ENDLESS_POOL[idx] === prevId) idx = (idx + 1) % n;
+    }
+    return ENDLESS_POOL[idx];
+  }
   function yokaiFlag(owned, key, reducer) {
     let acc = reducer === "sum" ? 0 : false;
     for (const id of owned) {
@@ -107,14 +155,28 @@
     const counts = MJHand.handToCounts(codes);
     // 規約: codes の最後の1枚がアガリ牌（平和の両面待ち判定等に使用）
     const winTile = MJHand.codeToIndex(codes[codes.length - 1]);
-    const res = MJHand.analyze(counts, { winTile, baWind: (state || {}).baWind, openMelds: (state || {}).openMelds });
-    if (!res.agari) return { agari: false };
-    // 門前ツモが常に1翻付くため、アガリは必ず役あり(han>=1)。
     const st = state || {};
     const owned = st.yokai || [];
-    const log = res.yaku.map((y) => `${y.name}${y.han}翻`);
+    const gimmick = st.gimmick || null;
+    // ★A1 v2 面子無効: 順封じ→順子(seq)禁止 / 刻封じ→刻子(trip)禁止 を analyze の列挙フィルタへ渡す（§9-1）。
+    const forbidMeld = gimmick === "junfuji" ? "seq" : gimmick === "kokufuji" ? "trip" : null;
+    const res = MJHand.analyze(counts, { winTile, baWind: st.baWind, openMelds: st.openMelds, forbidMeld });
+    if (!res.agari) return { agari: false };
     const names = res.yaku.map((y) => y.name);
     const hasYaku = (n) => names.some((x) => x === n || x.startsWith(n));
+    // ★A1 v2 役無効(和封じ): 平和が付く手ではアガれない（§9-2・簡易版=採点分解に平和を含めばブロック）。
+    if (gimmick === "heiwafuji" && hasYaku("平和")) return { agari: false, blockedByGimmick: true };
+    // ★A1 v3 役無効(染封じ/七対子封じ/断么封じ)・千日手（§10-2。役満手も弾く＝仕様通り）。
+    if (gimmick === "somefuji" && (hasYaku("混一色") || hasYaku("清一色"))) return { agari: false, blockedByGimmick: true };
+    if (gimmick === "chiitoifuji" && res.type === "chiitoi") return { agari: false, blockedByGimmick: true };
+    if (gimmick === "tanyaofuji" && hasYaku("断么九")) return { agari: false, blockedByGimmick: true };
+    if (gimmick === "sennichite" && st.lastAgariYaku) {
+      const ALWAYS = new Set(["門前清自摸和"]);
+      const now = names.filter((n) => !ALWAYS.has(n));
+      if (now.some((n) => st.lastAgariYaku.includes(n))) return { agari: false, blockedByGimmick: true };
+    }
+    // 門前ツモが常に1翻付くため、アガリは必ず役あり(han>=1)。
+    const log = res.yaku.map((y) => `${y.name}${y.han}翻`);
     const seqCount = res.seqCount || 0;
     const tripCount = res.tripCount || 0;
     const souCount = counts.slice(18, 27).reduce((a, b) => a + b, 0);
@@ -130,54 +192,59 @@
     const note = (m) => log.push(m);
 
     // --- 翻加算（役満時は既に最高位のため無効） ---
+    // ★A1 静寂(seijaku): 妖怪由来の「翻加算」を全無効化。符加算/加点/倍率はここでは対象外＝生かす。
+    const hanGate = gimmick !== "seijaku";
     if (!isYakuman) {
-      for (const id of owned) {
-        switch (id) {
-          case "rokurokubi": if (seqCount >= 3) { han += 1; note("ろくろ首+1翻"); } break;
-          case "ittanmomen": if (hasYaku("一気通貫") || hasYaku("三色同順")) { han += 1; note("一反木綿+1翻"); } break;
-          case "tengu": if (hasYaku("混一色") || hasYaku("清一色")) { han += 2; note("天狗+2翻"); } break;
-          case "azukiarai": if (res.type === "chiitoi") { han += 2; note("小豆洗い+2翻"); } break;
-          case "bakeneko": if (hasYaku("三暗刻") || hasYaku("対々和")) { han += 2; note("化け猫+2翻"); } break;
+      if (hanGate) {
+        for (const id of owned) {
+          switch (id) {
+            case "rokurokubi": if (seqCount >= 3) { han += 1; note("ろくろ首+1翻"); } break;
+            case "ittanmomen": if (hasYaku("一気通貫") || hasYaku("三色同順")) { han += 1; note("一反木綿+1翻"); } break;
+            case "tengu": if (hasYaku("混一色") || hasYaku("清一色")) { han += 2; note("天狗+2翻"); } break;
+            case "azukiarai": if (res.type === "chiitoi") { han += 2; note("小豆洗い+2翻"); } break;
+            case "bakeneko": if (hasYaku("三暗刻") || hasYaku("対々和")) { han += 2; note("化け猫+2翻"); } break;
+          }
         }
-      }
-      // --- ★D30 解放妖怪の翻加算 ---
-      if (owned.includes("onibi")) {
-        // 字牌の刻子数（手牌側の暗刻 + 晒した明刻）
-        let honorTrips = 0;
-        for (let i = 27; i <= 33; i++) if (counts[i] >= 3) honorTrips++;
-        for (const m of (st.openMelds || [])) if (m.t === "trip" && m.i >= 27) honorTrips++;
-        if (honorTrips > 0) { han += honorTrips; note(`鬼火+${honorTrips}翻`); }
-      }
-      if (owned.includes("nureonna") && res.type === "standard" && tripCount === 0) { han += 2; note("濡女+2翻"); }
-      if (owned.includes("yosuzume") && (st.openMelds || []).length > 0) { han += 2; note("夜雀+2翻"); }
-      if (owned.includes("ungaikyo") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 3; note("雲外鏡+3翻"); }
-      if (owned.includes("umibozu") && hasYaku("清一色")) { han += 3; note("海坊主+3翻"); }
-      if (owned.includes("hakutaku")) { han += 2; note("白澤+2翻"); }
-      // --- ★D31 追加妖怪の翻加算 ---
-      if (owned.includes("fuuri") && st.baWind != null) {
-        const hasBaWindTrip = counts[st.baWind] >= 3 || (st.openMelds || []).some((m) => m.t === "trip" && m.i === st.baWind);
-        if (hasBaWindTrip) { han += 2; note("風狸+2翻"); }
-      }
-      if (owned.includes("amanojaku") && (hasYaku("混全帯幺九") || hasYaku("純全帯幺九"))) { han += 2; note("天邪鬼+2翻"); }
-      // --- ★D32 追加解放妖怪の翻加算 ---
-      if (owned.includes("doraneko") && st.doraTile != null) {
-        // ドラ枚数 = 手牌側counts + 晒し面子（刻子=3枚 / 順子=範囲内なら1枚）
-        let dora = counts[st.doraTile] || 0;
-        for (const m of (st.openMelds || [])) {
-          if (m.t === "trip" && m.i === st.doraTile) dora += 3;
-          else if (m.t === "seq" && st.doraTile >= m.i && st.doraTile <= m.i + 2) dora += 1;
+        // --- ★D30 解放妖怪の翻加算 ---
+        if (owned.includes("onibi")) {
+          // 字牌の刻子数（手牌側の暗刻 + 晒した明刻）
+          let honorTrips = 0;
+          for (let i = 27; i <= 33; i++) if (counts[i] >= 3) honorTrips++;
+          for (const m of (st.openMelds || [])) if (m.t === "trip" && m.i >= 27) honorTrips++;
+          if (honorTrips > 0) { han += honorTrips; note(`鬼火+${honorTrips}翻`); }
         }
-        if (dora > 0) { han += dora; note(`ドラ×${dora}: +${dora}翻`); }
-      }
-      if (owned.includes("yakousan") && hasYaku("混老頭")) { han += 3; note("夜行さん+3翻"); }
-      if (owned.includes("fuujin")) {
-        let windTrips = 0;
-        for (let i = 27; i <= 30; i++) if (counts[i] >= 3) windTrips++;
-        for (const m of (st.openMelds || [])) if (m.t === "trip" && m.i >= 27 && m.i <= 30) windTrips++;
-        if (windTrips > 0) { han += 2 * windTrips; note(`風神+${2 * windTrips}翻`); }
+        if (owned.includes("nureonna") && res.type === "standard" && tripCount === 0) { han += 2; note("濡女+2翻"); }
+        if (owned.includes("yosuzume") && (st.openMelds || []).length > 0) { han += 2; note("夜雀+2翻"); }
+        if (owned.includes("ungaikyo") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 3; note("雲外鏡+3翻"); }
+        if (owned.includes("umibozu") && hasYaku("清一色")) { han += 3; note("海坊主+3翻"); }
+        if (owned.includes("hakutaku")) { han += 2; note("白澤+2翻"); }
+        // --- ★D31 追加妖怪の翻加算 ---
+        if (owned.includes("fuuri") && st.baWind != null) {
+          const hasBaWindTrip = counts[st.baWind] >= 3 || (st.openMelds || []).some((m) => m.t === "trip" && m.i === st.baWind);
+          if (hasBaWindTrip) { han += 2; note("風狸+2翻"); }
+        }
+        if (owned.includes("amanojaku") && (hasYaku("混全帯幺九") || hasYaku("純全帯幺九"))) { han += 2; note("天邪鬼+2翻"); }
+        // --- ★D32 追加解放妖怪の翻加算 ---
+        if (owned.includes("doraneko") && st.doraTile != null) {
+          // ドラ枚数 = 手牌側counts + 晒し面子（刻子=3枚 / 順子=範囲内なら1枚）
+          let dora = counts[st.doraTile] || 0;
+          for (const m of (st.openMelds || [])) {
+            if (m.t === "trip" && m.i === st.doraTile) dora += 3;
+            else if (m.t === "seq" && st.doraTile >= m.i && st.doraTile <= m.i + 2) dora += 1;
+          }
+          if (dora > 0) { han += dora; note(`ドラ×${dora}: +${dora}翻`); }
+        }
+        if (owned.includes("yakousan") && hasYaku("混老頭")) { han += 3; note("夜行さん+3翻"); }
+        if (owned.includes("fuujin")) {
+          let windTrips = 0;
+          for (let i = 27; i <= 30; i++) if (counts[i] >= 3) windTrips++;
+          for (const m of (st.openMelds || [])) if (m.t === "trip" && m.i >= 27 && m.i <= 30) windTrips++;
+          if (windTrips > 0) { han += 2 * windTrips; note(`風神+${2 * windTrips}翻`); }
+        }
       }
 
       // --- 符加算（満貫以上では自然に無意味化＝インフレしない。九十九神より先に確定させる） ---
+      // ★A1 静寂: 符加算は「翻加算」ではないため hanGate の対象外＝常に実行する。
       let fuAdd = 0;
       for (const id of owned) {
         switch (id) {
@@ -187,16 +254,20 @@
         }
       }
       if (fuAdd > 0) fu = Math.ceil((fu + fuAdd) / 10) * 10;
+      // ★A1 v3 枯山水(karesansui): 符を20固定（符加算・暗刻符等は乗らない）。役満は符を使わないので無害。
+      if (gimmick === "karesansui") { fu = 20; note("【枯山水】符20固定"); }
 
-      // --- ★D31 九十九神（最終符を参照するため符加算の後） ---
-      if (owned.includes("tsukumogami") && fu >= 50) { han += 3; note("九十九神+3翻"); }
+      if (hanGate) {
+        // --- ★D31 九十九神（最終符を参照するため符加算の後） ---
+        if (owned.includes("tsukumogami") && fu >= 50) { han += 3; note("九十九神+3翻"); }
 
-      // --- 翻の底上げ/パリティ ---
-      if (owned.includes("bakedanuki") && han < 2) { han = 2; note("化け狸: 最低2翻"); }
-      if (owned.includes("karakasa") && (han % 2 === 1)) { han += 1; note("唐傘+1翻"); }
-      // --- ★D30 段階発動（他の加算が済んだ後に判定） ---
-      if (owned.includes("shutendoji") && han >= 5) { han += 2; note("酒呑童子+2翻"); }
-      if (owned.includes("ryujin") && han >= 13) { han += 4; note("龍神+4翻"); }
+        // --- 翻の底上げ/パリティ ---
+        if (owned.includes("bakedanuki") && han < 2) { han = 2; note("化け狸: 最低2翻"); }
+        if (owned.includes("karakasa") && (han % 2 === 1)) { han += 1; note("唐傘+1翻"); }
+        // --- ★D30 段階発動（他の加算が済んだ後に判定） ---
+        if (owned.includes("shutendoji") && han >= 5) { han += 2; note("酒呑童子+2翻"); }
+        if (owned.includes("ryujin") && han >= 13) { han += 4; note("龍神+4翻"); }
+      }
     }
 
     // --- フラット加点（役満にも乗る） ---
@@ -215,6 +286,9 @@
     if (owned.includes("kitsunebi")) { times.push(1.5); note("狐火: 点数×1.5"); }
     // ★D31 玉藻前: 役満級のアガリをさらに伸ばす（深部の到達深度を延長）
     if (owned.includes("tamamonomae") && (isYakuman || han >= 13)) { times.push(1.5); note("玉藻前: 点数×1.5"); }
+
+    // ★A1 重石(omoishi): このボス戦の最終翻-1（下限1翻・役満は対象外）。scoreHanFu直前で適用。
+    if (gimmick === "omoishi" && !isYakuman) { han = Math.max(1, han - 1); note("【重石】翻-1"); }
 
     const hf = MJHand.scoreHanFu(han, fu, res.yakumanCount);
     let score = hf.score + flat;
@@ -251,10 +325,11 @@
   function makeRounds() {
     // ★D22: 標準麻雀の点数レンジに合わせた敵HP。「1〜2回のアガリで届く」水準。
     // 目安: 1翻30符=1000 / 3翻=3900 / 満貫=8000 / 跳満=12000。最終ボスは跳満級1発 or 満貫+α。
+    // ★A1: ボス3体にギミック付与（design/boss-gimmicks-a1.md §3）
     return [
-      { name: "小豆洗い", target: 1000 }, { name: "唐傘小僧", target: 1600 }, { name: "【ボス】提灯お化け", target: 3200, boss: true },
-      { name: "河童", target: 2600 }, { name: "ろくろ首", target: 3900 }, { name: "【ボス】天狗", target: 6400, boss: true },
-      { name: "化け猫", target: 5800 }, { name: "【大ボス】ぬらりひょん", target: 8000, boss: true },
+      { name: "小豆洗い", target: 1000 }, { name: "唐傘小僧", target: 1600 }, { name: "【ボス】提灯お化け", target: 3200, boss: true, gimmick: "kasumi" },
+      { name: "河童", target: 2600 }, { name: "ろくろ首", target: 3900 }, { name: "【ボス】天狗", target: 6400, boss: true, gimmick: "omoishi" },
+      { name: "化け猫", target: 5800 }, { name: "【大ボス】ぬらりひょん", target: 8000, boss: true, gimmick: "seijaku" },
     ];
   }
   const CAMPAIGN_ROUNDS = makeRounds();
@@ -273,7 +348,9 @@
     // 満貫キャップがあるため無限モードの伸びは緩め(×1.25)。役満(32000)到達は約8戦先。
     const target = Math.round(CAMPAIGN_ROUNDS[CAMPAIGN_ROUNDS.length - 1].target * Math.pow(1.25, over) / 100) * 100;
     const name = (boss ? "【百鬼】" : "") + ENDLESS_NAMES[i % ENDLESS_NAMES.length];
-    return { name, target, boss, wind, windName };
+    // ★A1 v3: 無限ボスはENDLESS_POOLから決定的な擬似乱数でローテ（非ボスはgimmickなし＝undefined）
+    const gimmick = boss ? endlessGimmickFor(i) : undefined;
+    return { name, target, boss, wind, windName, gimmick };
   }
 
   // ---- ゲーム ----------------------------------------------------------------
@@ -323,6 +400,11 @@
       this.doraTile = Math.floor(this.rng() * 34); // ★D32 ドラ牌（ドラ猫所持時のみ効果・表示）
       this.freeTsumoRerollLeft = yokaiFlag(this.yokai, "freeTsumoReroll", "sum"); // 化け草鞋
       this.koban += yokaiFlag(this.yokai, "kobanOnRound", "sum"); // 福助
+      // ★A1 v3 眠り(nemuri): このボス戦だけ所持妖怪からランダム1体を休眠させる（採点に不参加。§10-2）。
+      this.sleepingYokai = (this.currentRound().gimmick === "nemuri" && this.yokai.length)
+        ? this.yokai[Math.floor(this.rng() * this.yokai.length)] : null;
+      // ★A1 v3 千日手(sennichite)用: 直前のアガリ役の記憶はラウンドをまたがない（毎戦リセット）。
+      this.lastAgariYaku = null;
       this.wall = shuffle(this.deck, this.rng);
       this.discardPile = [];
       this.roundScore = 0;
@@ -330,7 +412,8 @@
       this.phase = "round";
       this.dealNewHand();
     }
-    _tsumoCount() { return 5 + yokaiFlag(this.yokai, "tsumoSize", "sum"); } // 百目で+1
+    // ★A1 紗霧(kasumi): ツモプールが1枚少ない(5→4)。百目等とはスタックする。
+    _tsumoCount() { return Math.max(1, 5 + yokaiFlag(this.yokai, "tsumoSize", "sum") - (this.currentRound().gimmick === "kasumi" ? 1 : 0)); }
     // 手牌＋ツモ（既定5枚）を配る。★D24: 通常は晒し面子もリセット（keepMelds=trueはすねこすり用）
     dealNewHand(keepMelds) {
       if (!keepMelds) this.melds = [];
@@ -354,6 +437,8 @@
     // 「同スート近傍なら何でも光る」旧ロジックは範囲が広すぎたため、
     // 実際にどこかの手牌1枚とスワップしてテンパイ改善(非テンパイ→テンパイ、または待ち種類が増える)する牌だけを対象にする。
     usefulTsumo() {
+      // ★A1 v3 のっぺらぼう(nopperabou): 手の目ハイライトを無効化。
+      if (this.currentRound().gimmick === "nopperabou") return [];
       if (!yokaiFlag(this.yokai, "highlight", "or")) return [];
       if (this.hand.length !== this.expectedConcealed || this.mustDiscard) return [];
       const baseWaits = this.handWaits();
@@ -390,7 +475,9 @@
       return this.wall.slice(-n).reverse();
     }
     _scoreState() {
-      return { yokai: this.yokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds, doraTile: this.doraTile };
+      // ★A1 v3 眠り(nemuri): 休眠中の妖怪を採点上の実効リストから除外。
+      const effYokai = this.sleepingYokai ? this.yokai.filter((id) => id !== this.sleepingYokai) : this.yokai;
+      return { yokai: effYokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds, doraTile: this.doraTile, gimmick: this.currentRound().gimmick || null, lastAgariYaku: this.lastAgariYaku };
     }
     // 化け草鞋: ツモだけ無料で引き直す（ツモ回数を消費しない・回数制限）
     rerollTsumo() {
@@ -404,6 +491,8 @@
     // 待ち牌が山(wall)にあと何枚あるか {tileIndex: count}。基本機能として常時有効。
     // 千里眼所持時は、まだ山に無くても捨て山(discardPile)に眠っている分まで見える（上位互換）。
     waitCounts() {
+      // ★A1 v3 のっぺらぼう(nopperabou): 待ち残数表示を無効化。
+      if (this.currentRound().gimmick === "nopperabou") return {};
       const seeDiscards = yokaiFlag(this.yokai, "countWaits", "or");
       const pool = seeDiscards ? this.wall.concat(this.discardPile) : this.wall;
       const m = {};
@@ -643,6 +732,8 @@
       if (this.phase !== "round") return { ok: false };
       const info = this.agariInfo();
       if (!info.agari) return { ok: false, message: "まだアガリの形ではありません（手牌13枚をテンパイに）" };
+      // ★A1 v3 千日手(sennichite)用: 常時役(門前清自摸和)を除いたアガリ役を記憶する。
+      this.lastAgariYaku = info.yaku.map((y) => y.name).filter((n) => n !== "門前清自摸和");
       this.roundScore += info.score;
       this.agariThisRound++;
       this.totalAgari++;
@@ -658,10 +749,14 @@
     }
     _finishRoundWin(out) {
       this.roundsCleared++;
-      const interest = Math.min(5, Math.floor(this.koban / 5));
+      const interestRaw = Math.min(5, Math.floor(this.koban / 5));
       const rmult = Math.max(1, yokaiFlag(this.yokai, "rewardMult", "sum")); // 金霊
+      // ★A1 v3 吝嗇(kechi): このボス戦のクリア報酬・利子(表示)を半減（切り上げ）。
+      const isKechi = this.currentRound().gimmick === "kechi";
       // ★D25: 残ツモの小判ボーナスは廃止（残ツモの持ち越し自体が速アガリの報酬）
-      const reward = (3 + interest) * rmult;
+      let reward = (3 + interestRaw) * rmult;
+      if (isKechi) reward = Math.ceil(reward / 2);
+      const interest = isKechi ? Math.ceil(interestRaw / 2) : interestRaw;
       this.koban += reward;
       out.roundCleared = true;
       out.reward = { total: reward, interest };
@@ -671,6 +766,11 @@
         // （撃破→報酬確認→市へ、というフロー。状態機械の変更なのでUnityにも移植される）
         const r = this.currentRound();
         this.clearInfo = { enemyName: r.name, boss: !!r.boss, reward, interest };
+        // ★A1 v3 事前告知(§10-4): 次ラウンドがボス+gimmickありなら開示する。
+        const nr = roundDefFor(this.roundIndex + 1);
+        if (nr.boss && nr.gimmick) {
+          this.clearInfo.nextBoss = { name: nr.name, gimmick: nr.gimmick, gimmickName: BOSS_GIMMICKS[nr.gimmick].name, gimmickDesc: BOSS_GIMMICKS[nr.gimmick].desc };
+        }
         this.phase = "clear";
         out.cleared = true;
       }
@@ -798,6 +898,7 @@
 
   return {
     YOKAI, YOKAI_IDS, SUITS, META_UPGRADES, META_IDS, metaNextCost,
+    BOSS_GIMMICKS, ENDLESS_POOL, endlessGimmickFor,
     tileLabelCode, computeAgari, makeStartingDeck, makeRounds, roundDefFor, shuffle, Game,
     CAMPAIGN_LENGTH: CAMPAIGN_ROUNDS.length,
     Hand: MJHand,

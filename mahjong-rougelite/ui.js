@@ -144,9 +144,14 @@
   function renderTopBar() {
     const r = game.currentRound();
     const pct = Math.min(100, Math.round((game.roundScore / r.target) * 100));
+    // ★A1: ボスラウンドかつgimmickありの時だけ警告バッジを表示（通常戦では出さない）
+    const gimmickHtml = (r.boss && r.gimmick)
+      ? `<span class="gimmick-badge" data-gimmick="${r.gimmick}">⚠${MJ.BOSS_GIMMICKS[r.gimmick].name}: ${MJ.BOSS_GIMMICKS[r.gimmick].desc}</span>`
+      : "";
     $("topbar").innerHTML =
       `<div class="title"><span class="home" data-home="1">🏠</span> ゆるかわ百鬼夜行 <span class="sub">🏅${meta.medals}</span></div>
        <div class="round-row"><span class="round-name ${r.boss ? "boss" : ""}">${game.mode === "endless" ? `♾️ ${game.roundIndex + 1}戦目` : `道中 ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}`} ${r.name} <span class="ba-wind">${r.windName}</span></span><span class="stat">目標 ${r.target}</span></div>
+       ${gimmickHtml}
        <div class="bar"><span style="width:${pct}%"></span></div>
        <div class="score-line">得点 ${game.roundScore} / ${r.target}</div>
        <div class="resources">
@@ -162,7 +167,14 @@
     if (yokaiPanelId && !game.yokai.includes(yokaiPanelId)) yokaiPanelId = null; // 手放した妖怪の表示を残さない
     bar.innerHTML = (game.yokai.length === 0
       ? `<span class="yokai-empty">まだ妖怪がいません（ショップで仲間に）</span>`
-      : game.yokai.map((id) => { const y = MJ.YOKAI[id]; const selCls = id === yokaiPanelId ? " selected" : ""; return `<div class="yokai${selCls}" data-yokaipanel="${id}" title="${y.desc}"><span class="rar">${"★".repeat(y.rarity)}</span><span class="face">${y.face}</span><span class="yname">${y.name}</span></div>`; }).join(""));
+      // ★A1 v3 眠り(nemuri): 休眠中の妖怪を薄く＋💤表示（game.sleepingYokai参照）
+      : game.yokai.map((id) => {
+          const y = MJ.YOKAI[id]; const selCls = id === yokaiPanelId ? " selected" : "";
+          const sleeping = id === game.sleepingYokai;
+          const sleepCls = sleeping ? " sleeping" : "";
+          const sleepBadge = sleeping ? `<span class="sleep-badge">💤</span>` : "";
+          return `<div class="yokai${selCls}${sleepCls}" data-yokaipanel="${id}" title="${y.desc}"><span class="rar">${"★".repeat(y.rarity)}</span><span class="face">${y.face}</span><span class="yname">${y.name}</span>${sleepBadge}</div>`;
+        }).join(""));
     bar.innerHTML += `<span class="slots">枠 ${game.yokai.length}/${game.yokaiSlots}</span>`;
     if (yokaiPanelId) {
       const y = MJ.YOKAI[yokaiPanelId];
@@ -199,11 +211,13 @@
     // ★D1: 待ち牌ごとの点数プレビュー（残枚数＋アガった場合の点数）
     const previews = game.waitPreviews();
     if (previews.length) {
-      const list = previews.map((p) =>
-        p.yakuless
-          ? `<span class="wait yakuless">${H.tileLabel(p.tile)}<span class="wcount">残${p.count}</span><span class="wscore">役なし</span></span>`
-          : `<span class="wait">${H.tileLabel(p.tile)}<span class="wcount">残${p.count}</span><span class="wscore">${p.limit ? p.limit : p.score.toLocaleString() + "点"}</span></span>`
-      ).join(" ");
+      // ★A1 v3 のっぺらぼう(nopperabou): waitCountsが空になり残数countがnull/undefinedになる→「残?」表示
+      const list = previews.map((p) => {
+        const countLabel = p.count == null ? "残?" : `残${p.count}`;
+        return p.yakuless
+          ? `<span class="wait yakuless">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">役なし</span></span>`
+          : `<span class="wait">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">${p.limit ? p.limit : p.score.toLocaleString() + "点"}</span></span>`;
+      }).join(" ");
       el.innerHTML = `<div class="tenpai">🀄 <b>テンパイ！</b> 待ち: ${list} <br>この牌がツモに来れば「アガリ」</div>`;
       return;
     }
@@ -323,7 +337,12 @@
       const bossFlair = ci.boss ? `<p class="boss-flair">👹 ボス撃破！ 市を出るとツモが多めに回復します</p>` : "";
       const interestLine = ci.interest > 0 ? `<span class="reward-sub">（基本3 ＋ 利子 ${ci.interest}）</span>` : "";
       const nextLabel = game.mode === "endless" ? `${game.roundIndex + 2}戦目` : `道中 ${game.roundIndex + 2}/${MJ.CAMPAIGN_LENGTH}`;
-      ov.innerHTML = `<div class="card clear-card"><div class="emoji">🎊</div><h1>${ci.enemyName} を撃破！</h1>${bossFlair}<div class="reward-big">報酬 🪙 +${ci.reward} 小判 ${interestLine}</div><p class="next-note">次は ${nextLabel}</p><button class="btn play gold" data-toshop="1">▶ 妖怪の市へ</button></div>`;
+      // ★A1 v3 事前告知(§10-4): 次の戦いがボス+gimmickありなら、クリア画面で先に開示する（Balatro式フェアネス）。
+      const nb = ci.nextBoss;
+      const nextBossHtml = nb
+        ? `<div class="next-boss-warn" data-nextgimmick="${nb.gimmick}">⚠ 次のボス『${nb.name}』は【${nb.gimmickName}】: ${nb.gimmickDesc}</div>`
+        : "";
+      ov.innerHTML = `<div class="card clear-card"><div class="emoji">🎊</div><h1>${ci.enemyName} を撃破！</h1>${bossFlair}<div class="reward-big">報酬 🪙 +${ci.reward} 小判 ${interestLine}</div><p class="next-note">次は ${nextLabel}</p>${nextBossHtml}<button class="btn play gold" data-toshop="1">▶ 妖怪の市へ</button></div>`;
       return;
     }
     const ended = game.phase === "won" || game.phase === "lost";

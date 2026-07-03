@@ -383,7 +383,15 @@
   // 役なし分解しか無い場合は agari:false（鳴いた手は役が必須）。
   function analyze(counts, ctx) {
     const openMelds = (ctx && ctx.openMelds) || [];
-    const decs = enumerateAgari(counts, 4 - openMelds.length);
+    let decs = enumerateAgari(counts, 4 - openMelds.length);
+    // ★A1 v2 面子無効(順封じ/刻封じ): 禁止面子("seq"/"trip")を含む分解を選択前に除外する。
+    // 別の合法な分解があればそれで和了、無ければ agari:false。chiitoi/kokushiはmeldsを持たないため残る。
+    // 仕様: design/boss-gimmicks-a1.md §9-1。
+    const forbid = ctx && ctx.forbidMeld;
+    if (forbid) {
+      if (openMelds.some((m) => m.t === forbid)) decs = [];
+      else decs = decs.filter((d) => d.type !== "standard" || d.melds.every((m) => m.t !== forbid));
+    }
     if (decs.length === 0) return { agari: false };
     let best = null;
     for (const d of decs) {
