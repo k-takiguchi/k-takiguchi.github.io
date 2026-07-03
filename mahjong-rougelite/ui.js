@@ -22,6 +22,11 @@
   let helpOpen = false; // 遊び方（チュートリアル）表示中
   let yokaiPanelId = null; // タップで選択中の妖怪id（その1体の効果だけ表示・スマホ対応）
   let titleTab = "chaya"; // ★D41 タイトルのタブ: "chaya"(妖怪茶屋) / "zukan"(妖怪図鑑)
+  // ---- ★A2 消耗品アイテム関連のUI状態 ----
+  let itemPanelId = null; // タップで選択中のアイテム枠index（効果表示＋使う/捨てるボタン）
+  let pendingShinzuu = null; // 神通力の札の2段階選択 {idx, handIdx}（handIdx未定なら手牌選択待ち・定まれば変換先選択待ち）
+  let pendingSwapItemId = null; // アイテム枠が埋まっている時に購入しようとしたアイテムid（誰を手放すか選択中）
+  let pendingDropIdx = null; // アイテム枠が埋まっている時のボスドロップ選択index（誰を手放すか選択中）
 
   const $ = (id) => document.getElementById(id);
 
@@ -143,17 +148,20 @@
 
   function renderTopBar() {
     const r = game.currentRound();
-    const pct = Math.min(100, Math.round((game.roundScore / r.target) * 100));
-    // ★A1: ボスラウンドかつgimmickありの時だけ警告バッジを表示（通常戦では出さない）
-    const gimmickHtml = (r.boss && r.gimmick)
-      ? `<span class="gimmick-badge" data-gimmick="${r.gimmick}">⚠${MJ.BOSS_GIMMICKS[r.gimmick].name}: ${MJ.BOSS_GIMMICKS[r.gimmick].desc}</span>`
+    // ★A2: 破魔矢(gimmick無効化)/数珠(目標-20%)の効果を即座に反映するため、表示値はeffectiveGimmick/effectiveTargetを使う。
+    const gimmick = game.effectiveGimmick();
+    const target = game.effectiveTarget();
+    const pct = Math.min(100, Math.round((game.roundScore / target) * 100));
+    // ★A1: ボスラウンドかつgimmickありの時だけ警告バッジを表示（通常戦では出さない。破魔矢使用後はgimmickがnullになり消える）
+    const gimmickHtml = (r.boss && gimmick)
+      ? `<span class="gimmick-badge" data-gimmick="${gimmick}">⚠${MJ.BOSS_GIMMICKS[gimmick].name}: ${MJ.BOSS_GIMMICKS[gimmick].desc}</span>`
       : "";
     $("topbar").innerHTML =
       `<div class="title"><span class="home" data-home="1">🏠</span> ゆるかわ百鬼夜行 <span class="sub">🏅${meta.medals}</span></div>
-       <div class="round-row"><span class="round-name ${r.boss ? "boss" : ""}">${game.mode === "endless" ? `♾️ ${game.roundIndex + 1}戦目` : `道中 ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}`} ${r.name} <span class="ba-wind">${r.windName}</span></span><span class="stat">目標 ${r.target}</span></div>
+       <div class="round-row"><span class="round-name ${r.boss ? "boss" : ""}">${game.mode === "endless" ? `♾️ ${game.roundIndex + 1}戦目` : `道中 ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}`} ${r.name} <span class="ba-wind">${r.windName}</span></span><span class="stat">目標 ${target}</span></div>
        ${gimmickHtml}
        <div class="bar"><span style="width:${pct}%"></span></div>
-       <div class="score-line">得点 ${game.roundScore} / ${r.target}</div>
+       <div class="score-line">得点 ${game.roundScore} / ${target}</div>
        <div class="resources">
          <span class="chip koban">小判 ${game.koban}</span>
          <span class="chip plays">ツモ残り ${game.drawsLeft}</span>
@@ -179,6 +187,46 @@
     if (yokaiPanelId) {
       const y = MJ.YOKAI[yokaiPanelId];
       bar.innerHTML += `<div class="yokai-panel"><div class="yokai-detail"><span class="face">${y.face}</span><b>${y.name}</b> <span class="rar-inline">${"★".repeat(y.rarity)}</span><span class="ydesc">${y.desc}</span></div></div>`;
+    }
+  }
+
+  // ★A2 消耗品スロット行（妖怪パネルの近くに表示。タップで効果＋使う/捨てるを表示）
+  function itemUsableNow(id) {
+    const def = MJ.ITEMS[id];
+    if (!def || def.usable === "auto") return false;
+    if (id === "hamaya") return game.phase === "round" && game.currentRound().boss && !!game.currentRound().gimmick;
+    if (id === "juzu") return game.phase === "round" && game.currentRound().boss;
+    if (id === "shinzuu") return game.phase === "round" && !game.mustDiscard;
+    if (def.usable === "round") return game.phase === "round";
+    if (def.usable === "shop") return game.phase === "shop";
+    return def.usable === "anytime";
+  }
+  function renderItems() {
+    const bar = $("item-bar");
+    if (itemPanelId != null && itemPanelId >= game.items.length) itemPanelId = null; // 使用/破棄済みなら閉じる
+    bar.innerHTML = (game.items.length === 0
+      ? `<span class="item-empty">まだ消耗品がありません</span>`
+      : game.items.map((id, i) => {
+          const it = MJ.ITEMS[id]; const selCls = i === itemPanelId ? " selected" : "";
+          return `<div class="item-chip${selCls}" data-itempanel="${i}" title="${it.desc}"><span class="rar">${"★".repeat(it.rarity)}</span><span class="face">${it.face}</span><span class="iname">${it.name}</span></div>`;
+        }).join(""));
+    bar.innerHTML += `<span class="slots">枠 ${game.items.length}/${game.itemSlots}</span>`;
+    if (itemPanelId != null) {
+      const id = game.items[itemPanelId];
+      const it = MJ.ITEMS[id];
+      const useBtn = it.usable === "auto"
+        ? `<span class="item-auto-note">自動発動（敗北を1回だけ無効化）</span>`
+        : `<button class="btn small gold" ${itemUsableNow(id) ? "" : "disabled"} data-usei="${itemPanelId}">使う</button>`;
+      bar.innerHTML += `<div class="yokai-panel item-panel"><div class="yokai-detail"><span class="face">${it.face}</span><b>${it.name}</b> <span class="rar-inline">${"★".repeat(it.rarity)}</span><span class="ydesc">${it.desc}</span></div><div class="item-actions">${useBtn}<button class="btn small indigo" data-discardi="${itemPanelId}">捨てる</button></div></div>`;
+    }
+    // ★A2 神通力の札: 2段階選択（手牌の対象牌→変換先牌）
+    if (pendingShinzuu) {
+      if (pendingShinzuu.handIdx == null) {
+        bar.innerHTML += `<div class="shinzuu-note">📜 手牌から変換する牌をタップしてください <button class="btn small indigo" data-cancelshinzuu="1">やめる</button></div>`;
+      } else {
+        const picker = Array.from({ length: 34 }, (_, t) => `<button class="btn small tile-pick" data-totile="${H.indexToCode(t)}">${H.tileLabel(t)}</button>`).join("");
+        bar.innerHTML += `<div class="shinzuu-note">📜 変換先の牌を選んでください<div class="tile-picker">${picker}</div><button class="btn small indigo" data-cancelshinzuu="1">やめる</button></div>`;
+      }
     }
   }
 
@@ -278,6 +326,21 @@
   function renderShop() {
     const shop = game.shop;
     const slotsFull = game.yokai.length >= game.yokaiSlots;
+    const itemSlotsFull = game.items.length >= game.itemSlots;
+    if (pendingSwapItemId) {
+      // アイテム枠が埋まっている状態で消耗品を購入しようとした→誰を手放すか選ぶ画面
+      const target = MJ.ITEMS[pendingSwapItemId];
+      const releaseHtml = game.items.map((id, ix) => {
+        const it = MJ.ITEMS[id];
+        return `<div class="offer"><span class="face">${it.face}</span><div class="info"><div class="n">${it.name} ${"★".repeat(it.rarity)}</div><div class="d">${it.desc}</div></div><button class="btn small discard" data-releaseitemshop="${ix}">手放す</button></div>`;
+      }).join("");
+      $("shop").innerHTML =
+        `<h2>🏮 妖怪の市 🏮</h2>
+         <div class="swap-note">消耗品の枠がいっぱいです。<b>${target.face} ${target.name}</b> と入れ替えるアイテムを選んでください</div>
+         <div class="shop-items">${releaseHtml}</div>
+         <div class="shop-actions"><button class="btn small indigo" data-cancelswapitem="1">← やめる</button></div>`;
+      return;
+    }
     if (pendingSwapId) {
       // 枠が埋まっている状態で妖怪を購入しようとした→誰を手放すか選ぶ画面
       const target = MJ.YOKAI[pendingSwapId];
@@ -306,18 +369,28 @@
     const freeLimit = game.yokai.includes("chochin") ? MJ.YOKAI.chochin.flags.freeRerollLimit : 0;
     const freeLeft = Math.max(0, freeLimit - (game.freeRerollsUsed || 0));
     const rerollLabel = freeLeft > 0 ? `(無料 残${freeLeft})` : "(1小判)";
+    // ★A2(§8) ショップの消耗品カテゴリ
+    const itemsHtml = (shop.items || []).map((o) => {
+      const it = MJ.ITEMS[o.id]; const afford = game.koban >= o.price;
+      const label = itemSlotsFull ? "入替" : `${o.price}小判`;
+      return `<div class="offer tile-offer"><span class="face">${it.face}</span><div class="info"><div class="n">${it.name} ${"★".repeat(it.rarity)}</div><div class="d">${it.desc}</div></div><button class="btn small ${itemSlotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buyitem="${o.id}">${label}</button></div>`;
+    }).join("");
+    const itemsSection = itemsHtml
+      ? `<div class="shop-category">🎴 消耗品（枠 ${game.items.length}/${game.itemSlots}）</div><div class="shop-items">${itemsHtml}</div>`
+      : "";
     $("shop").innerHTML =
       `<h2>🏮 妖怪の市 🏮</h2>
        <div class="resources"><span class="chip koban">小判 ${game.koban}</span><span class="slots">妖怪枠 ${game.yokai.length}/${game.yokaiSlots}</span></div>
        ${slotsFull ? '<div class="swap-note">枠がいっぱいです。妖怪を選ぶと入れ替え相手を選べます</div>' : ""}
        <div class="shop-items">${yokaiHtml}${drawsHtml}</div>
+       ${itemsSection}
        <div class="shop-actions"><button class="btn small indigo" data-reroll="1">🎲 引き直し ${rerollLabel}</button><button class="btn small play" data-next="1">次の道中へ →</button></div>`;
   }
 
   function showScreen() {
     const inTitle = screen === "title";
     $("title").classList.toggle("hidden", !inTitle);
-    ["topbar", "yokai-bar", "peek", "preview", "melds", "hand", "tsumo", "actions", "message", "shop"].forEach((id) => $(id).classList.toggle("hidden", inTitle));
+    ["topbar", "yokai-bar", "item-bar", "peek", "preview", "melds", "hand", "tsumo", "actions", "message", "shop"].forEach((id) => $(id).classList.toggle("hidden", inTitle));
     if (inTitle) $("overlay").classList.add("hidden");
   }
   function showByPhase() {
@@ -342,7 +415,24 @@
       const nextBossHtml = nb
         ? `<div class="next-boss-warn" data-nextgimmick="${nb.gimmick}">⚠ 次のボス『${nb.name}』は【${nb.gimmickName}】: ${nb.gimmickDesc}</div>`
         : "";
-      ov.innerHTML = `<div class="card clear-card"><div class="emoji">🎊</div><h1>${ci.enemyName} を撃破！</h1>${bossFlair}<div class="reward-big">報酬 🪙 +${ci.reward} 小判 ${interestLine}</div><p class="next-note">次は ${nextLabel}</p>${nextBossHtml}<button class="btn play gold" data-toshop="1">▶ 妖怪の市へ</button></div>`;
+      // ★A2(§6・§8) ボスドロップ: 2択カード(data-drop)＋「受け取らない」。枠フル時は入れ替え選択へ。
+      let dropHtml = "";
+      if (pendingDropIdx != null && ci.drops) {
+        const dropId = ci.drops[pendingDropIdx];
+        const dropDef = MJ.ITEMS[dropId];
+        const releaseHtml = game.items.map((id, ix) => {
+          const it = MJ.ITEMS[id];
+          return `<div class="offer"><span class="face">${it.face}</span><div class="info"><div class="n">${it.name} ${"★".repeat(it.rarity)}</div><div class="d">${it.desc}</div></div><button class="btn small discard" data-releaseitem="${ix}">手放す</button></div>`;
+        }).join("");
+        dropHtml = `<div class="drop-choice"><div class="swap-note">消耗品の枠がいっぱいです。<b>${dropDef.face} ${dropDef.name}</b> と入れ替えるアイテムを選んでください</div><div class="shop-items">${releaseHtml}</div><button class="btn small indigo" data-canceldrop="1">← やめる</button></div>`;
+      } else if (ci.drops && ci.drops.length) {
+        const cards = ci.drops.map((id, ix) => {
+          const it = MJ.ITEMS[id];
+          return `<div class="offer drop-card" data-drop="${ix}"><span class="face">${it.face}</span><div class="info"><div class="n">${it.name} ${"★".repeat(it.rarity)}</div><div class="d">${it.desc}</div></div></div>`;
+        }).join("");
+        dropHtml = `<div class="drop-choice"><div class="drop-title">🎁 ボスドロップ：どちらか1つを選べます</div><div class="shop-items">${cards}</div><button class="btn small indigo" data-skipdrop="1">受け取らない</button></div>`;
+      }
+      ov.innerHTML = `<div class="card clear-card"><div class="emoji">🎊</div><h1>${ci.enemyName} を撃破！</h1>${bossFlair}<div class="reward-big">報酬 🪙 +${ci.reward} 小判 ${interestLine}</div><p class="next-note">次は ${nextLabel}</p>${nextBossHtml}${dropHtml}<button class="btn play gold" data-toshop="1">▶ 妖怪の市へ</button></div>`;
       return;
     }
     const ended = game.phase === "won" || game.phase === "lost";
@@ -369,7 +459,7 @@
       if (game.phase === "won" && !meta.endlessUnlocked) meta.endlessUnlocked = true;
       saveMeta();
     }
-    renderTopBar(); renderYokai();
+    renderTopBar(); renderYokai(); renderItems();
     if (game.phase === "shop") renderShop();
     else if (game.phase !== "clear") { renderPeek(); renderBanner(); renderHand(); renderTsumo(); renderActions(); }
     showByPhase(); renderOverlay();
@@ -380,6 +470,7 @@
   function startRun(mode) {
     game = new MJ.Game({ meta, mode: mode || selectedMode });
     sel = null; awardedMedals = 0; lastEarned = 0;
+    itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null;
     screen = "run"; setMessage(""); render();
   }
   function doContinueEndless() {
@@ -387,14 +478,65 @@
     game.enterShop();
     render();
   }
-  function toTitle() { screen = "title"; sel = null; render(); }
+  function toTitle() { screen = "title"; sel = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop]");
     if (!t) return;
     if (t.dataset.titletab) { titleTab = t.dataset.titletab; renderTitle(); return; } // ★D41 タイトルのタブ切替
-    if (t.dataset.toshop) { game.enterShop(); setMessage(""); render(); return; } // ★D38 クリア画面→妖怪の市
+    if (t.dataset.toshop) { pendingDropIdx = null; game.enterShop(); setMessage(""); render(); return; } // ★D38 クリア画面→妖怪の市
     if (t.dataset.yokaipanel) { yokaiPanelId = (yokaiPanelId === t.dataset.yokaipanel) ? null : t.dataset.yokaipanel; renderYokai(); return; }
+    if (t.dataset.itempanel != null) { const i = parseInt(t.dataset.itempanel, 10); itemPanelId = (itemPanelId === i) ? null : i; pendingShinzuu = null; renderItems(); return; }
+    if (t.dataset.usei != null) {
+      const i = parseInt(t.dataset.usei, 10);
+      const id = game.items[i];
+      if (id === "shinzuu") { pendingShinzuu = { idx: i, handIdx: null }; itemPanelId = null; render(); return; }
+      const r = game.useItem(i);
+      setMessage(r.ok ? `${MJ.ITEMS[id].name}を使った` : (r.message || ""));
+      if (r.ok) itemPanelId = null;
+      render();
+      return;
+    }
+    if (t.dataset.discardi != null) { game.discardItem(parseInt(t.dataset.discardi, 10)); itemPanelId = null; render(); return; }
+    if (t.dataset.cancelshinzuu) { pendingShinzuu = null; render(); return; }
+    if (t.dataset.totile) {
+      if (pendingShinzuu && pendingShinzuu.handIdx != null) {
+        const r = game.useItem(pendingShinzuu.idx, { handIdx: pendingShinzuu.handIdx, toCode: t.dataset.totile });
+        setMessage(r.ok ? "📜 神通力の札で牌を変換した" : (r.message || ""));
+        pendingShinzuu = null;
+      }
+      render();
+      return;
+    }
+    if (t.dataset.buyitem) {
+      if (game.items.length >= game.itemSlots) { pendingSwapItemId = t.dataset.buyitem; render(); return; }
+      const r = game.buyItem(t.dataset.buyitem); setMessage(r.ok ? "消耗品を手に入れた！" : (r.message || "")); render(); return;
+    }
+    if (t.dataset.releaseitemshop != null) {
+      const ix = parseInt(t.dataset.releaseitemshop, 10);
+      const r = game.swapItem(ix, pendingSwapItemId);
+      pendingSwapItemId = null;
+      setMessage(r.ok ? `${MJ.ITEMS[r.gained].name}と入れ替えた！` : (r.message || "")); render(); return;
+    }
+    if (t.dataset.cancelswapitem) { pendingSwapItemId = null; render(); return; }
+    if (t.dataset.drop != null) {
+      const i = parseInt(t.dataset.drop, 10);
+      const r = game.chooseDrop(i);
+      if (r.full) { pendingDropIdx = i; }
+      else { pendingDropIdx = null; setMessage(r.ok ? `${MJ.ITEMS[r.gained].name}を手に入れた！` : (r.message || "")); }
+      render();
+      return;
+    }
+    if (t.dataset.skipdrop) { if (game.clearInfo) game.clearInfo.drops = null; pendingDropIdx = null; render(); return; }
+    if (t.dataset.releaseitem != null) {
+      const ix = parseInt(t.dataset.releaseitem, 10);
+      const dropId = game.clearInfo.drops[pendingDropIdx];
+      const r = game.swapItem(ix, dropId);
+      if (r.ok) game.clearInfo.drops = null;
+      pendingDropIdx = null;
+      setMessage(r.ok ? `${MJ.ITEMS[dropId].name}と入れ替えた！` : (r.message || "")); render(); return;
+    }
+    if (t.dataset.canceldrop) { pendingDropIdx = null; render(); return; }
     if (t.dataset.unlockyokai) { unlockYokai(t.dataset.unlockyokai); return; }
     if (t.dataset.help) { helpOpen = true; renderTitle(); return; }
     if (t.dataset.helpclose) { helpOpen = false; renderTitle(); return; }
@@ -423,11 +565,18 @@
     if (t.dataset.tea) { const r = game.buyTea(); setMessage(r.ok ? "🍵 ツモが3回復した" : (r.message || "")); render(); return; }
     if (t.dataset.kanro) { const r = game.buyKanro(); setMessage(r.ok ? "✨ ツモが全回復した！" : (r.message || "")); render(); return; }
     if (t.dataset.furoshiki) { const r = game.buyFuroshiki(); setMessage(r.ok ? "🎒 妖怪枠が1つ増えた！" : (r.message || "")); render(); return; }
-    if (t.dataset.reroll) { pendingSwapId = null; const r = game.reroll(); setMessage(r.ok ? "" : (r.message || "")); render(); return; }
-    if (t.dataset.next) { game.leaveShop(); sel = null; pendingSwapId = null; setMessage(""); render(); return; }
+    if (t.dataset.reroll) { pendingSwapId = null; pendingSwapItemId = null; const r = game.reroll(); setMessage(r.ok ? "" : (r.message || "")); render(); return; }
+    if (t.dataset.next) { game.leaveShop(); sel = null; pendingSwapId = null; pendingSwapItemId = null; setMessage(""); render(); return; }
   });
 
   function onTile(zone, i) {
+    // ★A2 神通力の札: 2段階選択の1段階目（手牌の対象牌を選ぶ）。通常の手牌⇔ツモ交換より優先。
+    if (pendingShinzuu && pendingShinzuu.handIdx == null) {
+      if (zone !== "hand") return;
+      pendingShinzuu = { idx: pendingShinzuu.idx, handIdx: i };
+      renderItems();
+      return;
+    }
     // ★D24: 鳴き直後は手牌タップ＝1枚捨てて確定（ツモが無料リフレッシュ）
     if (game.mustDiscard) {
       if (zone !== "hand") return;

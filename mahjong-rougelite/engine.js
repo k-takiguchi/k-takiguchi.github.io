@@ -134,12 +134,28 @@
     return acc;
   }
 
+  // ---- ★A2 消耗品アイテム（使い切りの一発。妖怪とは別レイヤー） -----------------
+  // 参照: ../design/consumables-a2.md 。usable: "round"(ラウンド中) / "shop"(ショップ中) /
+  // "anytime"(常時) / "auto"(手動使用不可・自動発動のみ=migawari)。
+  const ITEMS = {
+    shinzuu:    { name: "神通力の札", face: "📜", rarity: 3, price: 9, desc: "手牌1枚を選んだ牌に変える(1回)", category: "牌操作", usable: "round" },
+    habauchiwa: { name: "天狗の羽団扇", face: "🪭", rarity: 2, price: 6, desc: "手牌＋ツモを引き直す(ツモ回数を消費しない)", category: "手作り", usable: "round" },
+    ema:        { name: "絵馬", face: "🎴", rarity: 2, price: 6, desc: "次のアガリの翻+2(予約・一発)", category: "打点", usable: "round" },
+    migawari:   { name: "身代わり札", face: "🪆", rarity: 2, price: 7, desc: "次の敗北(ツモ切れ)を1回無効化", category: "保険", usable: "auto" },
+    hamaya:     { name: "破魔矢", face: "🏹", rarity: 3, price: 9, desc: "このボス戦のギミックを無効化", category: "A1対策", usable: "round" },
+    juzu:       { name: "数珠", face: "📿", rarity: 3, price: 8, desc: "このボス戦の目標点-20%", category: "敵弱体", usable: "round" },
+    kozuchi:    { name: "打ち出の小槌", face: "🔨", rarity: 1, price: 5, desc: "小判+10(即時)", category: "経済", usable: "anytime" },
+    yobimizu:   { name: "呼び水", face: "💧", rarity: 1, price: 4, desc: "ショップを1回無料リロール", category: "ショップ", usable: "shop" },
+  };
+  const ITEM_IDS = Object.keys(ITEMS);
+
   // ---- メタ進行（恒久強化） --------------------------------------------------
   const META_UPGRADES = {
     seed_koban:  { name: "軍資金",   face: "💰", desc: "開始時の小判 +2 /Lv", max: 3, costs: [8, 12, 16] },
     nebari:      { name: "粘り",     face: "🪢", desc: "ステージ間のツモ回復 +1 /Lv", max: 2, costs: [15, 25] },
     engimono:    { name: "縁起物",   face: "🎏", desc: "アガリの点数 +300 /Lv", max: 2, costs: [12, 20] },
     slot_plus:   { name: "妖怪の絆", face: "🤝", desc: "妖怪枠 +1 /Lv",       max: 2, costs: [18, 30] },
+    item_slot:   { name: "道具袋",   face: "👝", desc: "消耗品枠 +1 /Lv",     max: 2, costs: [18, 30] },
     shop_size:   { name: "賑わう市", face: "🏮", desc: "ショップの妖怪 +1",    max: 1, costs: [15] },
     lucky_start: { name: "はじめの友", face: "🦊", desc: "開始時にランダムな妖怪1体", max: 1, costs: [25] },
   };
@@ -268,6 +284,8 @@
         if (owned.includes("shutendoji") && han >= 5) { han += 2; note("酒呑童子+2翻"); }
         if (owned.includes("ryujin") && han >= 13) { han += 4; note("龍神+4翻"); }
       }
+      // --- ★A2 絵馬(ema): 消耗品由来の翻加算。妖怪由来ではないため静寂(hanGate)の対象外。 ---
+      if (st.pendingHanBonus) { han += st.pendingHanBonus; note(`絵馬: +${st.pendingHanBonus}翻`); }
     }
 
     // --- フラット加点（役満にも乗る） ---
@@ -385,23 +403,34 @@
       this.teaPrice = 4; // お茶(ツモ+3)の価格。ラン中はリセットせず購入のたびに+1
       this.extraSlots = 0; // 風呂敷(妖怪枠+1)の購入数 ★D29
       this.furoshikiPrice = 8; // 風呂敷の価格。購入のたびに+4
+      this.items = []; // ★A2 消耗品アイテム(所持id配列)
       this.phase = "round";
       this.startRound();
     }
     currentRound() { return roundDefFor(this.roundIndex); }
     // 妖怪枠: 基礎(メタ強化込み) + 消費アイテム「風呂敷」の購入数(★D29)。上限10。
     get yokaiSlots() { return Math.min(10, this._baseSlots + (this.extraSlots || 0)); }
+    // ★A2 消耗品スロット数: 基礎2 + メタ強化(item_slot)/Lv。上限は妖怪枠に倣い5でキャップ。
+    get itemSlots() { return Math.min(5, 2 + this.metaLvl("item_slot")); }
     isLastCampaignStage() { return this.mode === "campaign" && this.roundIndex >= CAMPAIGN_ROUNDS.length - 1; }
+    // ★A2/§5: 破魔矢(hamaya)/数珠(juzu)がボス戦のギミック/目標点を無効化・軽減するための実効値アクセサ。
+    // gimmickNegated/targetReducedが未セット(false)の間はcurrentRound()の値をそのまま返す＝デフォルト挙動は不変。
+    effectiveGimmick() { return this.gimmickNegated ? null : (this.currentRound().gimmick || null); }
+    effectiveTarget() { const t = this.currentRound().target; return this.targetReduced ? Math.round(t * 0.8 / 100) * 100 : t; }
 
     startRound() {
       this.mulligansLeft = yokaiFlag(this.yokai, "mulligan", "sum");    // すねこすり
       this.guaranteedLeft = yokaiFlag(this.yokai, "guaranteedDraw", "sum"); // 見上げ入道
       this.kudanLeft = yokaiFlag(this.yokai, "yakumanDraw", "sum"); // ★D32 件
+      // ★A2: 破魔矢/数珠/絵馬の予約フラグはラウンドごとにリセット(そのボス戦限りの効果のため)。
+      this.gimmickNegated = false;
+      this.targetReduced = false;
+      this.pendingHanBonus = 0;
       this.doraTile = Math.floor(this.rng() * 34); // ★D32 ドラ牌（ドラ猫所持時のみ効果・表示）
       this.freeTsumoRerollLeft = yokaiFlag(this.yokai, "freeTsumoReroll", "sum"); // 化け草鞋
       this.koban += yokaiFlag(this.yokai, "kobanOnRound", "sum"); // 福助
       // ★A1 v3 眠り(nemuri): このボス戦だけ所持妖怪からランダム1体を休眠させる（採点に不参加。§10-2）。
-      this.sleepingYokai = (this.currentRound().gimmick === "nemuri" && this.yokai.length)
+      this.sleepingYokai = (this.effectiveGimmick() === "nemuri" && this.yokai.length)
         ? this.yokai[Math.floor(this.rng() * this.yokai.length)] : null;
       // ★A1 v3 千日手(sennichite)用: 直前のアガリ役の記憶はラウンドをまたがない（毎戦リセット）。
       this.lastAgariYaku = null;
@@ -413,7 +442,7 @@
       this.dealNewHand();
     }
     // ★A1 紗霧(kasumi): ツモプールが1枚少ない(5→4)。百目等とはスタックする。
-    _tsumoCount() { return Math.max(1, 5 + yokaiFlag(this.yokai, "tsumoSize", "sum") - (this.currentRound().gimmick === "kasumi" ? 1 : 0)); }
+    _tsumoCount() { return Math.max(1, 5 + yokaiFlag(this.yokai, "tsumoSize", "sum") - (this.effectiveGimmick() === "kasumi" ? 1 : 0)); }
     // 手牌＋ツモ（既定5枚）を配る。★D24: 通常は晒し面子もリセット（keepMelds=trueはすねこすり用）
     dealNewHand(keepMelds) {
       if (!keepMelds) this.melds = [];
@@ -438,7 +467,7 @@
     // 実際にどこかの手牌1枚とスワップしてテンパイ改善(非テンパイ→テンパイ、または待ち種類が増える)する牌だけを対象にする。
     usefulTsumo() {
       // ★A1 v3 のっぺらぼう(nopperabou): 手の目ハイライトを無効化。
-      if (this.currentRound().gimmick === "nopperabou") return [];
+      if (this.effectiveGimmick() === "nopperabou") return [];
       if (!yokaiFlag(this.yokai, "highlight", "or")) return [];
       if (this.hand.length !== this.expectedConcealed || this.mustDiscard) return [];
       const baseWaits = this.handWaits();
@@ -477,7 +506,7 @@
     _scoreState() {
       // ★A1 v3 眠り(nemuri): 休眠中の妖怪を採点上の実効リストから除外。
       const effYokai = this.sleepingYokai ? this.yokai.filter((id) => id !== this.sleepingYokai) : this.yokai;
-      return { yokai: effYokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds, doraTile: this.doraTile, gimmick: this.currentRound().gimmick || null, lastAgariYaku: this.lastAgariYaku };
+      return { yokai: effYokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds, doraTile: this.doraTile, gimmick: this.effectiveGimmick(), lastAgariYaku: this.lastAgariYaku, pendingHanBonus: this.pendingHanBonus || 0 };
     }
     // 化け草鞋: ツモだけ無料で引き直す（ツモ回数を消費しない・回数制限）
     rerollTsumo() {
@@ -492,7 +521,7 @@
     // 千里眼所持時は、まだ山に無くても捨て山(discardPile)に眠っている分まで見える（上位互換）。
     waitCounts() {
       // ★A1 v3 のっぺらぼう(nopperabou): 待ち残数表示を無効化。
-      if (this.currentRound().gimmick === "nopperabou") return {};
+      if (this.effectiveGimmick() === "nopperabou") return {};
       const seeDiscards = yokaiFlag(this.yokai, "countWaits", "or");
       const pool = seeDiscards ? this.wall.concat(this.discardPile) : this.wall;
       const m = {};
@@ -717,12 +746,18 @@
       return out;
     }
     _handleDrawsOut(out) {
-      // ツモ切れ。ぬりかべがあれば回復、無ければ敗北。
+      // ツモ切れ。まず妖怪(ぬりかべ=lossNegate)、次に消耗品(身代わり札=migawari)の順で救済し、
+      // どちらも無ければ敗北(★A2/§4・§7: 救済ロジックは共通化・消費順=妖怪→アイテム)。
       const negate = yokaiFlag(this.yokai, "lossNegate", "sum");
+      const migawariIdx = this.items.indexOf("migawari");
       if (this.lossNegateUsed < negate) {
         this.lossNegateUsed++;
         this.drawsLeft = Math.max(this.drawsLeft, 3);
         out.lossNegated = true;
+      } else if (migawariIdx >= 0) {
+        this.items.splice(migawariIdx, 1);
+        this.drawsLeft = Math.max(this.drawsLeft, 3);
+        out.itemSaved = true;
       } else {
         this.phase = "lost";
         out.gameOver = true;
@@ -738,8 +773,10 @@
       this.agariThisRound++;
       this.totalAgari++;
       this.koban += yokaiFlag(this.yokai, "kobanOnAgari", "sum");
+      // ★A2 絵馬(ema): アガリ成立で予約していた翻ボーナスを消費(0へリセット)。
+      this.pendingHanBonus = 0;
       const out = { ok: true, agari: true, score: info.score, han: info.han, fu: info.fu, limit: info.limit, yakumanCount: info.yakumanCount, yaku: info.yaku, log: info.log, winTile: info.winTile };
-      if (this.roundScore >= this.currentRound().target) {
+      if (this.roundScore >= this.effectiveTarget()) {
         this._finishRoundWin(out);
       } else {
         this.dealNewHand(); // 新しい手牌13＋ツモ5で続行
@@ -751,8 +788,8 @@
       this.roundsCleared++;
       const interestRaw = Math.min(5, Math.floor(this.koban / 5));
       const rmult = Math.max(1, yokaiFlag(this.yokai, "rewardMult", "sum")); // 金霊
-      // ★A1 v3 吝嗇(kechi): このボス戦のクリア報酬・利子(表示)を半減（切り上げ）。
-      const isKechi = this.currentRound().gimmick === "kechi";
+      // ★A1 v3 吝嗇(kechi): このボス戦のクリア報酬・利子(表示)を半減（切り上げ）。破魔矢で無効化されていれば通常通り。
+      const isKechi = this.effectiveGimmick() === "kechi";
       // ★D25: 残ツモの小判ボーナスは廃止（残ツモの持ち越し自体が速アガリの報酬）
       let reward = (3 + interestRaw) * rmult;
       if (isKechi) reward = Math.ceil(reward / 2);
@@ -766,6 +803,16 @@
         // （撃破→報酬確認→市へ、というフロー。状態機械の変更なのでUnityにも移植される）
         const r = this.currentRound();
         this.clearInfo = { enemyName: r.name, boss: !!r.boss, reward, interest };
+        // ★A2 ボスドロップ(§6): ボス撃破時のみ、消耗品プールから重複なしランダム2種を提示(chooseDropで1つ取得)。
+        if (r.boss) {
+          const remaining = ITEM_IDS.slice();
+          const picks = [];
+          for (let k = 0; k < 2 && remaining.length; k++) {
+            const ri = Math.floor(this.rng() * remaining.length);
+            picks.push(remaining.splice(ri, 1)[0]);
+          }
+          this.clearInfo.drops = picks;
+        }
         // ★A1 v3 事前告知(§10-4): 次ラウンドがボス+gimmickありなら開示する。
         const nr = roundDefFor(this.roundIndex + 1);
         if (nr.boss && nr.gimmick) {
@@ -774,6 +821,17 @@
         this.phase = "clear";
         out.cleared = true;
       }
+    }
+    // ★A2 ボスドロップの選択(idx=clearInfo.drops内のindex)。満杯ならfull:trueを返し取得しない(UI側で入替/破棄へ)。
+    // 「取らない」選択はUI側でこのメソッドを呼ばないだけで良い(clearInfo.dropsはそのまま残す)。
+    chooseDrop(idx) {
+      if (this.phase !== "clear" || !this.clearInfo || !this.clearInfo.drops) return { ok: false };
+      if (idx < 0 || idx >= this.clearInfo.drops.length) return { ok: false };
+      const id = this.clearInfo.drops[idx];
+      if (this.items.length >= this.itemSlots) return { ok: false, full: true, id };
+      this.items.push(id);
+      this.clearInfo.drops = null; // 選択済み(取り直し不可)
+      return { ok: true, gained: id };
     }
 
     // ---- ショップ -----------------------------------------------------------
@@ -803,6 +861,23 @@
       const unlocked = ((this.meta && this.meta.unlockedYokai) || []).includes(id);
       return unlocked && (this.roundIndex + 2) >= u.minStage;
     }
+    // ★A2: 消耗品も妖怪と同じレア度重み付け（★=10/★★=4/★★★=1）でn種オファー(重複無し)。
+    _weightedItemPool(pool, n) {
+      const W = { 1: 10, 2: 4, 3: 1 };
+      const remaining = pool.map((id) => ({ id, w: W[ITEMS[id].rarity] || 1 }));
+      const picked = [];
+      const k = Math.min(n, remaining.length);
+      for (let i = 0; i < k; i++) {
+        const total = remaining.reduce((a, x) => a + x.w, 0);
+        let r = this.rng() * total;
+        let idx = 0;
+        for (; idx < remaining.length; idx++) { r -= remaining[idx].w; if (r <= 0) break; }
+        if (idx >= remaining.length) idx = remaining.length - 1;
+        picked.push(remaining[idx].id);
+        remaining.splice(idx, 1);
+      }
+      return picked;
+    }
     rollShop() {
       const pool = YOKAI_IDS.filter((id) => !this.yokai.includes(id) && this._yokaiAvailable(id));
       const offers = this._weightedYokaiPool(pool);
@@ -810,7 +885,10 @@
       const hasKanro = this.rng() < 0.25;
       // ★D29: 風呂敷(妖怪枠+1)は30%で入荷。枠が上限(10)なら並ばない。
       const hasFuroshiki = this.rng() < 0.30 && this.yokaiSlots < 10;
-      this.shop = { yokai: offers, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki };
+      // ★A2(§6): 消耗品を1〜2枠オファー（重み付け抽選）。
+      const itemCount = 1 + (this.rng() < 0.5 ? 1 : 0);
+      const itemOffers = this._weightedItemPool(ITEM_IDS.slice(), itemCount);
+      this.shop = { yokai: offers, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki, items: itemOffers.map((id) => ({ id, price: ITEMS[id].price })) };
     }
     reroll() {
       if (this.phase !== "shop") return { ok: false };
@@ -843,6 +921,100 @@
       this.yokai.push(newId);
       this.shop.yokai = this.shop.yokai.filter((x) => x !== newId);
       return { ok: true, released: releaseId, gained: newId };
+    }
+
+    // ---- ★A2 消耗品アイテム ---------------------------------------------------
+    // 購入。満杯時は{ok:false, full:true}を返し購入せず、UI側で入替/破棄フローへ(§2)。
+    buyItem(id) {
+      if (this.phase !== "shop" || !this.shop.items || !this.shop.items.some((x) => x.id === id)) return { ok: false, message: "在庫にありません" };
+      if (this.items.length >= this.itemSlots) return { ok: false, full: true, message: "アイテム枠がいっぱいです（入れ替えできます）" };
+      const price = ITEMS[id].price;
+      if (this.koban < price) return { ok: false, message: "小判が足りません" };
+      this.koban -= price;
+      this.items.push(id);
+      this.shop.items = this.shop.items.filter((x) => x.id !== id);
+      return { ok: true };
+    }
+    // アイテム枠の破棄（入替UIの「その場で破棄」導線用）。
+    discardItem(idx) {
+      if (idx < 0 || idx >= this.items.length) return { ok: false };
+      const released = this.items.splice(idx, 1)[0];
+      return { ok: true, released };
+    }
+    // アイテム枠が埋まっている時の入れ替え。ショップ在庫のnewIdなら購入(価格消費+在庫から除去)を伴い、
+    // それ以外(ボスドロップ等・phase!=="shop"や在庫に無いid)は無償の差し替えとして扱う。
+    swapItem(idx, newId) {
+      if (idx < 0 || idx >= this.items.length) return { ok: false, message: "対象がありません" };
+      const inShop = this.phase === "shop" && this.shop && this.shop.items && this.shop.items.some((x) => x.id === newId);
+      if (inShop) {
+        const price = ITEMS[newId].price;
+        if (this.koban < price) return { ok: false, message: "小判が足りません" };
+        this.koban -= price;
+        this.shop.items = this.shop.items.filter((x) => x.id !== newId);
+      }
+      const released = this.items[idx];
+      this.items[idx] = newId;
+      return { ok: true, released, gained: newId };
+    }
+    // 使用。usable(§3)がラウンド中の項目はround以外で不可・ショップ限定はshop以外で不可。
+    // migawariは自動発動専用でuseItemからは使用不可(§4)。
+    useItem(idx, arg) {
+      if (idx < 0 || idx >= this.items.length) return { ok: false };
+      const id = this.items[idx];
+      const def = ITEMS[id];
+      if (!def || def.usable === "auto") return { ok: false, message: "今は使えません" };
+      switch (id) {
+        case "shinzuu": {
+          // 神通力の札: 手牌1枚を選んだ牌へ変換(2段階UI＝アイテム→手牌牌→変換先牌)。
+          if (this.phase !== "round" || this.mustDiscard) return { ok: false, message: "今は使えません" };
+          const a = arg || {};
+          if (a.handIdx == null || a.handIdx < 0 || a.handIdx >= this.hand.length || !a.toCode) return { ok: false, message: "対象を指定してください" };
+          this.hand[a.handIdx] = a.toCode;
+          this.hand = sortCodes(this.hand);
+          break;
+        }
+        case "habauchiwa": {
+          // 天狗の羽団扇: 手牌＋ツモを引き直す(redealHandと同ロジックだがツモ回数・引き直し回数どちらも消費しない)。
+          if (this.phase !== "round") return { ok: false, message: "今は使えません" };
+          for (const c of this.hand) this.discardPile.push(c);
+          for (const c of this.tsumo) this.discardPile.push(c);
+          this.dealNewHand(true); // 晒した面子はそのまま
+          break;
+        }
+        case "ema": {
+          // 絵馬: 次のアガリの翻+2を予約(複数回使えば加算)。
+          if (this.phase !== "round") return { ok: false, message: "今は使えません" };
+          this.pendingHanBonus = (this.pendingHanBonus || 0) + 2;
+          break;
+        }
+        case "hamaya": {
+          // 破魔矢: このボス戦のギミックを無効化。ギミック無し/非ボスでは使用不可。
+          if (this.phase !== "round" || !this.currentRound().boss || !this.currentRound().gimmick) return { ok: false, message: "今は使えません" };
+          this.gimmickNegated = true;
+          break;
+        }
+        case "juzu": {
+          // 数珠: このボス戦の目標点-20%。ボス戦のみ使用可。
+          if (this.phase !== "round" || !this.currentRound().boss) return { ok: false, message: "今は使えません" };
+          this.targetReduced = true;
+          break;
+        }
+        case "kozuchi": {
+          // 打ち出の小槌: 小判+10(即時・anytime)。
+          this.koban += 10;
+          break;
+        }
+        case "yobimizu": {
+          // 呼び水: ショップを1回無料リロール(shop中のみ)。
+          if (this.phase !== "shop") return { ok: false, message: "今は使えません" };
+          this.rollShop();
+          break;
+        }
+        default:
+          return { ok: false };
+      }
+      this.items.splice(idx, 1);
+      return { ok: true };
     }
     // ★D25: お茶＝ツモ+3の即時回復（上限=開始値）。価格はラン中に購入毎+1で上昇し続ける
     buyTea() {
@@ -899,6 +1071,7 @@
   return {
     YOKAI, YOKAI_IDS, SUITS, META_UPGRADES, META_IDS, metaNextCost,
     BOSS_GIMMICKS, ENDLESS_POOL, endlessGimmickFor,
+    ITEMS, ITEM_IDS,
     tileLabelCode, computeAgari, makeStartingDeck, makeRounds, roundDefFor, shuffle, Game,
     CAMPAIGN_LENGTH: CAMPAIGN_ROUNDS.length,
     Hand: MJHand,

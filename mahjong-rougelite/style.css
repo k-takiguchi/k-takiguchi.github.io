@@ -73,6 +73,29 @@ html, body {
 .yokai-panel-hint { text-align: center; font-size: 9px; color: #b6ae98; margin-top: 4px; }
 .slots { margin-left: auto; font-size: 11px; color: #9a927c; font-weight: 700; }
 
+/* ---- ★A2 消耗品アイテムバー ---- */
+#item-bar { display: flex; gap: 6px; flex-wrap: wrap; min-height: 46px; align-items: center; }
+.item-chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 58px; padding: 4px 6px; border-radius: 10px; background: #eef5ff;
+  border: 1.5px solid var(--blue); position: relative; cursor: pointer;
+}
+.item-chip .face { font-size: 20px; line-height: 1; }
+.item-chip .iname { font-size: 9.5px; font-weight: 800; color: var(--blue); margin-top: 2px; }
+.item-chip .rar { position: absolute; top: -6px; right: -4px; font-size: 9px; color: var(--gold); }
+.item-chip.selected { border-color: var(--vermilion); background: #fff3ee; }
+.item-empty { color: #b6ae98; font-size: 12px; padding: 6px; }
+.item-panel .item-actions { display: flex; gap: 8px; margin-top: 6px; justify-content: center; }
+.item-auto-note { font-size: 11px; color: #9a927c; }
+.shinzuu-note { width: 100%; margin-top: 6px; border-top: 1.5px dashed #cfe0f5; padding-top: 6px; text-align: center; font-size: 12px; color: var(--blue); font-weight: 700; }
+.tile-picker { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin: 6px 0; }
+.tile-picker .tile-pick { min-width: 34px; padding: 2px 4px; font-size: 11px; }
+.shop-category { font-size: 12px; font-weight: 800; color: var(--blue); margin: 10px 0 4px; }
+.drop-choice { margin: 10px 0; }
+.drop-title { font-size: 13px; font-weight: 800; color: var(--purple); text-align: center; margin-bottom: 8px; }
+.offer.drop-card { cursor: pointer; }
+.offer.drop-card:hover { border-color: var(--vermilion); }
+
 /* ---- 先読み ---- */
 .peek { min-height: 20px; font-size: 11px; color: #7d7660; text-align: center; }
 .peek b { color: var(--indigo); }
