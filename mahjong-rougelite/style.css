@@ -197,6 +197,8 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .offer .price { font-weight: 800; color: var(--gold); font-size: 13px; white-space: nowrap; }
 .offer.tile-offer { background: #eef5ff; border-color: #cfe0f5; }
 .offer.tile-offer .info .n { color: var(--blue); }
+.offer.item-offer { background: #fdf3e0; border-color: #ecd9a8; }
+.offer.item-offer .info .n { color: #a1701f; }
 .shop-actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
 .swap-note { text-align: center; font-size: 12px; color: var(--vermilion); font-weight: 700; background: #fff3ee; border: 1px dashed #f0c7b8; border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
 
@@ -275,4 +277,4 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .hidden { display: none !important; }
 
 /* ★D48 ショップで消耗品を妖怪と同じ枠に混在表示する時の識別 */
-.offer.item-offer .kind-tag { font-size: 10px; background: #6b4bd6; color: #fff; border-radius: 4px; padding: 0 4px; margin-left: 2px; vertical-align: middle; }
+.offer.item-offer .kind-tag { font-size: 10px; background: #a1701f; color: #fff; border-radius: 4px; padding: 0 4px; margin-left: 2px; vertical-align: middle; }
