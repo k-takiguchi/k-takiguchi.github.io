@@ -21,6 +21,7 @@
   let selectedMode = "campaign"; // タイトルで選ぶ次ランのモード
   let helpOpen = false; // 遊び方（チュートリアル）表示中
   let yokaiPanelId = null; // タップで選択中の妖怪id（その1体の効果だけ表示・スマホ対応）
+  let titleTab = "chaya"; // ★D41 タイトルのタブ: "chaya"(妖怪茶屋) / "zukan"(妖怪図鑑)
 
   const $ = (id) => document.getElementById(id);
 
@@ -107,9 +108,15 @@
         : `<button class="btn small gold" ${afford ? "" : "disabled"} data-unlockyokai="${id}">🏅${y.unlock.cost}</button>`;
       return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div></div>${btn}</div>`;
     }).join("");
-    const zukanHtml = `<div class="meta-head" style="margin-top:16px">📖 妖怪図鑑（メダルで解放）</div>
-      <div class="meta-note" style="margin:2px 0 8px">解放した妖怪は、記載ステージ以降の「妖怪の市」に並ぶようになります</div>
+    // ★D41 タブ化: 茶屋/図鑑を切り替えて表示（タイトルが縦に長くなりテストプレイの妨げになっていた）
+    const chaya = `<div class="shop-items">${rows}</div>`;
+    const zukan = `<div class="meta-note" style="margin:0 0 8px">解放した妖怪は、記載ステージ以降の「妖怪の市」に並ぶようになります</div>
       <div class="shop-items">${zukanRows}</div>`;
+    const tabsHtml = `<div class="title-tabs">
+        <button class="title-tab ${titleTab === "chaya" ? "active" : ""}" data-titletab="chaya">🏯 妖怪茶屋</button>
+        <button class="title-tab ${titleTab === "zukan" ? "active" : ""}" data-titletab="zukan">📖 妖怪図鑑</button>
+      </div>
+      <div class="tab-panel">${titleTab === "zukan" ? zukan : chaya}</div>`;
     const modeHtml = meta.endlessUnlocked
       ? `<div class="mode-select">
            <button class="mode-btn ${selectedMode === "campaign" ? "active" : ""}" data-mode="campaign">📖 百鬼夜行<span class="mode-sub">全8戦・制覇を目指す</span></button>
@@ -119,9 +126,7 @@
     $("title").innerHTML =
       `<div class="title-hero"><div class="game-logo">ゆるかわ百鬼夜行</div><div class="game-sub">〜麻雀ローグライト proto〜</div></div>
        <div class="medal-bar">所持メダル 🏅 <b>${meta.medals}</b></div>
-       <div class="meta-head">🏯 妖怪茶屋（恒久強化）</div>
-       <div class="shop-items">${rows}</div>
-       ${zukanHtml}
+       ${tabsHtml}
        ${modeHtml}
        <button class="btn small indigo help-open" data-help="1">❓ 遊び方（はじめての方へ）</button>
        <button class="btn play start-btn" data-startrun="1">▶ ${selectedMode === "endless" ? "無限夜行へ出発" : "百鬼夜行へ出発"}</button>
@@ -365,8 +370,9 @@
   function toTitle() { screen = "title"; sel = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab]");
     if (!t) return;
+    if (t.dataset.titletab) { titleTab = t.dataset.titletab; renderTitle(); return; } // ★D41 タイトルのタブ切替
     if (t.dataset.toshop) { game.enterShop(); setMessage(""); render(); return; } // ★D38 クリア画面→妖怪の市
     if (t.dataset.yokaipanel) { yokaiPanelId = (yokaiPanelId === t.dataset.yokaipanel) ? null : t.dataset.yokaipanel; renderYokai(); return; }
     if (t.dataset.unlockyokai) { unlockYokai(t.dataset.unlockyokai); return; }

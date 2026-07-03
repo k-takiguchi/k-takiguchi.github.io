@@ -189,6 +189,11 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .medal-bar { text-align: center; font-size: 15px; font-weight: 800; color: var(--gold); margin: 6px 0 14px; }
 .medal-bar b { font-size: 20px; }
 .meta-head { text-align: center; font-size: 15px; font-weight: 800; color: var(--indigo-dark); margin-bottom: 8px; }
+/* ★D41 タイトルのタブ（妖怪茶屋/妖怪図鑑） */
+.title-tabs { display: flex; gap: 6px; margin: 4px 0 10px; }
+.title-tab { flex: 1; padding: 9px 6px; border-radius: 10px 10px 0 0; border: 2px solid #e6ddc7; border-bottom: none; background: #f4efe3; color: #8a8575; font-size: 13px; font-weight: 800; cursor: pointer; }
+.title-tab.active { border-color: var(--indigo); background: var(--card); color: var(--indigo-dark); box-shadow: 0 -2px 6px var(--shadow); }
+.tab-panel { border-top: 2px solid var(--indigo); padding-top: 10px; margin-top: -10px; }
 .meta-note { text-align: center; font-size: 11px; color: #8a8575; margin-top: 12px; }
 .pips { font-size: 11px; color: var(--gold); letter-spacing: 1px; }
 .meta-max { font-weight: 800; color: var(--green); font-size: 13px; padding: 0 6px; }
