@@ -355,12 +355,23 @@
          <div class="shop-actions"><button class="btn small indigo" data-cancelswap="1">← やめる</button></div>`;
       return;
     }
-    const yokaiHtml = shop.yokai.map((id) => {
+    // ★D48: 妖怪と消耗品は「同じ上枠」からスロット順(shop.order)で混在表示する。
+    const yokaiOfferHtml = (id) => {
       const y = MJ.YOKAI[id]; const price = game.yokaiPrice(id); const afford = game.koban >= price;
       const disc = price < y.price ? `<span class="disc">${y.price}</span>` : "";
       const label = slotsFull ? "入替" : `${disc}${price}小判`;
       return `<div class="offer"><span class="face">${y.face}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)}</div><div class="d">${y.desc}</div></div><button class="btn small ${slotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buy="${id}">${label}</button></div>`;
-    }).join("");
+    };
+    const itemOfferHtml = (o) => {
+      const it = MJ.ITEMS[o.id]; const afford = game.koban >= o.price;
+      const label = itemSlotsFull ? "入替" : `${o.price}小判`;
+      return `<div class="offer item-offer"><span class="face">${it.face}</span><div class="info"><div class="n">${it.name} ${"★".repeat(it.rarity)} <span class="kind-tag">道具</span></div><div class="d">${it.desc}</div></div><button class="btn small ${itemSlotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buyitem="${o.id}">${label}</button></div>`;
+    };
+    const shopOrder = shop.order || [...shop.yokai.map((id) => ({ kind: "yokai", id })), ...(shop.items || []).map((o) => ({ kind: "item", id: o.id }))];
+    const yokaiHtml = shopOrder
+      .filter((e) => e.kind === "yokai" ? shop.yokai.includes(e.id) : (shop.items || []).some((x) => x.id === e.id))
+      .map((e) => e.kind === "yokai" ? yokaiOfferHtml(e.id) : itemOfferHtml((shop.items || []).find((x) => x.id === e.id)))
+      .join("");
     const teaFull = game.drawsLeft >= game.startDraws;
     const teaHtml = shop.tea ? `<div class="offer tile-offer"><span class="face">🍵</span><div class="info"><div class="n">お茶（ツモ +3）</div><div class="d">ツモ回数を3回復（現在 ${game.drawsLeft}/${game.startDraws}）</div></div><button class="btn small indigo" ${(!teaFull && game.koban >= game.teaPrice) ? "" : "disabled"} data-tea="1">${teaFull ? "満タン" : game.teaPrice + "小判"}</button></div>` : "";
     const kanroHtml = shop.kanro ? `<div class="offer tile-offer"><span class="face">✨</span><div class="info"><div class="n">甘露（ツモ全回復）</div><div class="d">ツモ回数を${game.startDraws}まで全回復（レア入荷）</div></div><button class="btn small gold" ${(!teaFull && game.koban >= shop.kanroPrice) ? "" : "disabled"} data-kanro="1">${shop.kanroPrice}小判</button></div>` : "";
@@ -369,21 +380,11 @@
     const freeLimit = game.yokai.includes("chochin") ? MJ.YOKAI.chochin.flags.freeRerollLimit : 0;
     const freeLeft = Math.max(0, freeLimit - (game.freeRerollsUsed || 0));
     const rerollLabel = freeLeft > 0 ? `(無料 残${freeLeft})` : "(1小判)";
-    // ★A2(§8) ショップの消耗品カテゴリ
-    const itemsHtml = (shop.items || []).map((o) => {
-      const it = MJ.ITEMS[o.id]; const afford = game.koban >= o.price;
-      const label = itemSlotsFull ? "入替" : `${o.price}小判`;
-      return `<div class="offer tile-offer"><span class="face">${it.face}</span><div class="info"><div class="n">${it.name} ${"★".repeat(it.rarity)}</div><div class="d">${it.desc}</div></div><button class="btn small ${itemSlotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buyitem="${o.id}">${label}</button></div>`;
-    }).join("");
-    const itemsSection = itemsHtml
-      ? `<div class="shop-category">🎴 消耗品（枠 ${game.items.length}/${game.itemSlots}）</div><div class="shop-items">${itemsHtml}</div>`
-      : "";
     $("shop").innerHTML =
       `<h2>🏮 妖怪の市 🏮</h2>
-       <div class="resources"><span class="chip koban">小判 ${game.koban}</span><span class="slots">妖怪枠 ${game.yokai.length}/${game.yokaiSlots}</span></div>
-       ${slotsFull ? '<div class="swap-note">枠がいっぱいです。妖怪を選ぶと入れ替え相手を選べます</div>' : ""}
+       <div class="resources"><span class="chip koban">小判 ${game.koban}</span><span class="slots">妖怪枠 ${game.yokai.length}/${game.yokaiSlots}</span><span class="slots">道具枠 ${game.items.length}/${game.itemSlots}</span></div>
+       ${slotsFull ? '<div class="swap-note">妖怪枠がいっぱいです。妖怪を選ぶと入れ替え相手を選べます</div>' : ""}
        <div class="shop-items">${yokaiHtml}${drawsHtml}</div>
-       ${itemsSection}
        <div class="shop-actions"><button class="btn small indigo" data-reroll="1">🎲 引き直し ${rerollLabel}</button><button class="btn small play" data-next="1">次の道中へ →</button></div>`;
   }
 

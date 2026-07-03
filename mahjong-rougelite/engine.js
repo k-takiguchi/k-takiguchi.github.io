@@ -836,12 +836,12 @@
 
     // ---- ショップ -----------------------------------------------------------
     enterShop() { this.phase = "shop"; this.freeRerollsUsed = 0; this.rollShop(); }
-    // レア度が高いほど出現しにくい重み付き抽選（★=10 / ★★=4 / ★★★=1）。重複無しでshopYokaiCount体選ぶ。
-    _weightedYokaiPool(pool) {
+    // レア度が高いほど出現しにくい重み付き抽選（★=10 / ★★=4 / ★★★=1）。重複無しでn体選ぶ（未指定はshopYokaiCount）。
+    _weightedYokaiPool(pool, count) {
       const W = { 1: 10, 2: 4, 3: 1 };
       const remaining = pool.map((id) => ({ id, w: W[YOKAI[id].rarity] || 1 }));
       const picked = [];
-      const n = Math.min(this.shopYokaiCount, remaining.length);
+      const n = Math.min(count == null ? this.shopYokaiCount : count, remaining.length);
       for (let k = 0; k < n; k++) {
         const total = remaining.reduce((a, x) => a + x.w, 0);
         let r = this.rng() * total;
@@ -879,16 +879,30 @@
       return picked;
     }
     rollShop() {
-      const pool = YOKAI_IDS.filter((id) => !this.yokai.includes(id) && this._yokaiAvailable(id));
-      const offers = this._weightedYokaiPool(pool);
+      // ★D48: 上枠(shopYokaiCount)を妖怪と消耗品で「同じ枠から」混在配分する。
+      // 各枠は独立に確率ITEM_RATEで消耗品、それ以外は妖怪。表示順もスロット順(order)で混ぜる。
+      // 妖怪が主役のため「最低1枠は妖怪」を保証（消耗品はtotal-1まで）。
+      const ITEM_RATE = 0.30;
+      const total = this.shopYokaiCount;
+      let itemN = 0;
+      for (let k = 0; k < total; k++) if (this.rng() < ITEM_RATE) itemN++;
+      itemN = Math.min(itemN, total - 1); // 最低1枠は妖怪を残す
+      const ypool = YOKAI_IDS.filter((id) => !this.yokai.includes(id) && this._yokaiAvailable(id));
+      const yokaiOffers = this._weightedYokaiPool(ypool, Math.min(total - itemN, ypool.length));
+      itemN = total - yokaiOffers.length; // 妖怪プール枯渇時は消耗品で埋める
+      const itemOffers = this._weightedItemPool(ITEM_IDS.slice(), Math.min(itemN, ITEM_IDS.length));
+      // スロット順に妖怪/消耗品を混ぜた表示順（決定的rng）
+      const order = [];
+      const yq = yokaiOffers.slice(), iq = itemOffers.slice();
+      while (yq.length || iq.length) {
+        const takeItem = iq.length && (!yq.length || this.rng() < iq.length / (iq.length + yq.length));
+        order.push(takeItem ? { kind: "item", id: iq.shift() } : { kind: "yokai", id: yq.shift() });
+      }
       // ★D25: ツモ回復アイテム。お茶(+3)は常設(値上がり式)、甘露(全回復)は25%で出現。
       const hasKanro = this.rng() < 0.25;
       // ★D29: 風呂敷(妖怪枠+1)は30%で入荷。枠が上限(10)なら並ばない。
       const hasFuroshiki = this.rng() < 0.30 && this.yokaiSlots < 10;
-      // ★A2(§6): 消耗品を1〜2枠オファー（重み付け抽選）。
-      const itemCount = 1 + (this.rng() < 0.5 ? 1 : 0);
-      const itemOffers = this._weightedItemPool(ITEM_IDS.slice(), itemCount);
-      this.shop = { yokai: offers, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki, items: itemOffers.map((id) => ({ id, price: ITEMS[id].price })) };
+      this.shop = { yokai: yokaiOffers, items: itemOffers.map((id) => ({ id, price: ITEMS[id].price })), order, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki };
     }
     reroll() {
       if (this.phase !== "shop") return { ok: false };

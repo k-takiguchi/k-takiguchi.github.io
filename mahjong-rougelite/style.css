@@ -273,3 +273,6 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .overlay .card .btn { display: block; width: 100%; margin-top: 8px; }
 
 .hidden { display: none !important; }
+
+/* ★D48 ショップで消耗品を妖怪と同じ枠に混在表示する時の識別 */
+.offer.item-offer .kind-tag { font-size: 10px; background: #6b4bd6; color: #fff; border-radius: 4px; padding: 0 4px; margin-left: 2px; vertical-align: middle; }
