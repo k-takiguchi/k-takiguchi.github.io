@@ -27,8 +27,27 @@
   let pendingShinzuu = null; // 神通力の札の2段階選択 {idx, handIdx}（handIdx未定なら手牌選択待ち・定まれば変換先選択待ち）
   let pendingSwapItemId = null; // アイテム枠が埋まっている時に購入しようとしたアイテムid（誰を手放すか選択中）
   let pendingDropIdx = null; // アイテム枠が埋まっている時のボスドロップ選択index（誰を手放すか選択中）
+  let pendingConfirm = null; // 確認ダイアログ表示中 {message, yesLabel, onYes}（誤タップ防止）
 
   const $ = (id) => document.getElementById(id);
+
+  // ---- 確認ダイアログ（誤タップ防止）----
+  function showConfirm(opts) {
+    pendingConfirm = opts; // { message, yesLabel, noLabel?, onYes }
+    renderConfirm();
+  }
+  function renderConfirm() {
+    const el = $("confirm");
+    if (!pendingConfirm) { el.className = "overlay confirm-overlay hidden"; el.innerHTML = ""; return; }
+    const c = pendingConfirm;
+    el.className = "overlay confirm-overlay";
+    el.innerHTML =
+      `<div class="card confirm-card">
+        <div class="confirm-msg">${c.message}</div>
+        <button class="btn play gold" data-confirmyes="1">${c.yesLabel || "はい"}</button>
+        <button class="btn small indigo" data-confirmno="1">${c.noLabel || "やめる"}</button>
+      </div>`;
+  }
 
   // ★テストプレイヤー向けチュートリアル（麻雀既習者向け: 役の説明は省略、本作特有ルールに絞る）
   function helpHtml() {
@@ -469,7 +488,7 @@
     renderTopBar(); renderYokai(); renderItems();
     if (game.phase === "shop") renderShop();
     else if (game.phase !== "clear") { renderPeek(); renderBanner(); renderHand(); renderTsumo(); renderActions(); }
-    showByPhase(); renderOverlay();
+    showByPhase(); renderOverlay(); renderConfirm();
   }
   function renderBoard() { renderBanner(); renderHand(); renderTsumo(); renderActions(); }
 
@@ -477,7 +496,7 @@
   function startRun(mode) {
     game = new MJ.Game({ meta, mode: mode || selectedMode });
     sel = null; awardedMedals = 0; lastEarned = 0;
-    itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null;
+    itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null;
     screen = "run"; setMessage(""); render();
   }
   function doContinueEndless() {
@@ -485,11 +504,16 @@
     game.enterShop();
     render();
   }
-  function toTitle() { screen = "title"; sel = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; render(); }
+  function toTitle() { screen = "title"; sel = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno]");
     if (!t) return;
+    // 確認ダイアログの応答（他の操作より優先）
+    if (t.dataset.confirmno) { pendingConfirm = null; renderConfirm(); return; }
+    if (t.dataset.confirmyes) { const cb = pendingConfirm && pendingConfirm.onYes; pendingConfirm = null; renderConfirm(); if (cb) cb(); return; }
+    // 確認ダイアログ表示中は背後の操作を無効化（誤タップ防止）
+    if (pendingConfirm) return;
     if (t.dataset.titletab) { titleTab = t.dataset.titletab; renderTitle(); return; } // ★D41 タイトルのタブ切替
     if (t.dataset.toshop) { pendingDropIdx = null; game.enterShop(); setMessage(""); render(); return; } // ★D38 クリア画面→妖怪の市
     if (t.dataset.yokaipanel) { yokaiPanelId = (yokaiPanelId === t.dataset.yokaipanel) ? null : t.dataset.yokaipanel; renderYokai(); return; }
@@ -621,26 +645,60 @@
   }
 
   function doRedeal() {
-    const res = game.redealHand();
-    sel = null;
-    setMessage(res.ok ? "🔄 手牌を引き直した" : (res.message || ""));
-    render();
+    showConfirm({
+      message: `🔄 手牌を引き直しますか？<br><span class="confirm-sub">今の手牌とツモは新しく引き直されます（残り ${game.mulligansLeft} 回）</span>`,
+      yesLabel: "引き直す",
+      onYes: () => {
+        const res = game.redealHand();
+        sel = null;
+        setMessage(res.ok ? "🔄 手牌を引き直した" : (res.message || ""));
+        render();
+      },
+    });
   }
   function doRerollTsumo() {
-    const res = game.rerollTsumo();
-    sel = null;
-    setMessage(res.ok ? "🔄 ツモを引き直した（無料）" : (res.message || ""));
-    render();
+    showConfirm({
+      message: `🔄 ツモを引き直しますか？<br><span class="confirm-sub">今のツモは新しく引き直されます（無料 残り ${game.freeTsumoRerollLeft} 回）</span>`,
+      yesLabel: "引き直す",
+      onYes: () => {
+        const res = game.rerollTsumo();
+        sel = null;
+        setMessage(res.ok ? "🔄 ツモを引き直した（無料）" : (res.message || ""));
+        render();
+      },
+    });
   }
   function doCall(k) {
     const opts = game.callOptions();
     if (k < 0 || k >= opts.length) return;
-    const r = game.call(opts[k]);
-    sel = null;
-    setMessage(r.ok ? `${opts[k].label}！ 捨てる牌を選んでください` : (r.message || ""));
-    render();
+    const o = opts[k];
+    // 鳴きは門前が崩れる不可逆な操作→確認（誤タップ防止）
+    const useNote = o.type === "chi" && o.use ? `（手牌 ${o.use.map((c) => MJ.tileLabelCode(c)).join("・")} を使用）` : "";
+    showConfirm({
+      message: `🀄 「${o.label}」で鳴きますか？${useNote}<br><span class="confirm-sub">鳴くと門前が崩れ、門前役（ツモ・平和・七対子など）が付かなくなります。</span>`,
+      yesLabel: "鳴く",
+      onYes: () => {
+        const r = game.call(o);
+        sel = null;
+        setMessage(r.ok ? `${o.label}！ 捨てる牌を選んでください` : (r.message || ""));
+        render();
+      },
+    });
   }
   function doDraw() {
+    // アガリ可能な状態でツモを引くと今の和了形を捨ててしまう→確認（誤タップ防止）
+    if (game.agariInfo().agari) {
+      showConfirm({
+        message: `🎉 今アガれる手です！<br><span class="confirm-sub">このままツモを引くと、今の和了形は崩れます。<br>アガらずにツモを引きますか？</span>`,
+        yesLabel: "ツモを引く",
+        noLabel: "やめる（アガる）",
+        onYes: () => execDraw(),
+      });
+      return;
+    }
+    execDraw();
+  }
+  function execDraw() {
     const res = game.drawTsumo();
     sel = null;
     if (res.lossNegated) setMessage("🧱 ぬりかべが敗北を防いだ！ツモを回復。");

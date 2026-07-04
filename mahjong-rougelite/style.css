@@ -223,6 +223,13 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .overlay p { color: #5a5545; font-size: 13px; line-height: 1.7; }
 .overlay .emoji { font-size: 48px; }
 
+/* ---- 確認ダイアログ（誤タップ防止）---- */
+.confirm-overlay { background: rgba(20, 22, 40, .6); z-index: 20; }
+.confirm-card { max-width: 300px; padding: 22px 20px; }
+.confirm-card .confirm-msg { font-size: 16px; font-weight: 800; color: var(--indigo-dark); line-height: 1.6; margin-bottom: 16px; }
+.confirm-card .confirm-sub { display: block; font-size: 12px; font-weight: 600; color: #8a8575; margin-top: 6px; line-height: 1.6; }
+.confirm-card .btn { display: block; width: 100%; margin-top: 8px; }
+
 /* ---- タイトル & メタショップ ---- */
 .title-screen { padding: 8px 4px 20px; }
 .title-hero { text-align: center; padding: 24px 0 10px; }
