@@ -92,7 +92,7 @@
   }
   function renderTitle() {
     if (helpOpen) { $("title").innerHTML = helpHtml(); return; }
-    const rows = MJ.META_IDS.map((id) => {
+    const metaRowHtml = (id) => {
       const u = MJ.META_UPGRADES[id];
       const lv = meta.upgrades[id] || 0;
       const cost = MJ.metaNextCost(id, lv);
@@ -101,9 +101,13 @@
       const pips = "●".repeat(lv) + "○".repeat(u.max - lv);
       const btn = maxed ? `<span class="meta-max">MAX</span>` : `<button class="btn small gold" ${afford ? "" : "disabled"} data-metabuy="${id}">🏅${cost}</button>`;
       return `<div class="offer"><span class="face">${u.face}</span><div class="info"><div class="n">${u.name} <span class="pips">${pips}</span></div><div class="d">${u.desc}</div></div>${btn}</div>`;
-    }).join("");
-    // ★D30: 妖怪図鑑（メダルで解放 → 規定ステージ以降のショップに出現）
-    const unlockIds = MJ.YOKAI_IDS.filter((id) => MJ.YOKAI[id].unlock);
+    };
+    // ★D50: late(枠開放系)は高額のエンドコンテンツ扱いとして「奥義」に分けて表示
+    const rows = MJ.META_IDS.filter((id) => !MJ.META_UPGRADES[id].late).map(metaRowHtml).join("");
+    const lateRows = MJ.META_IDS.filter((id) => MJ.META_UPGRADES[id].late).map(metaRowHtml).join("");
+    // ★D30: 妖怪図鑑（メダルで解放 → 規定ステージ以降のショップに出現）★D50: 出現ステージの昇順
+    const unlockIds = MJ.YOKAI_IDS.filter((id) => MJ.YOKAI[id].unlock)
+      .sort((a, b) => (MJ.YOKAI[a].unlock.minStage - MJ.YOKAI[b].unlock.minStage) || (MJ.YOKAI[a].unlock.cost - MJ.YOKAI[b].unlock.cost));
     const zukanRows = unlockIds.map((id) => {
       const y = MJ.YOKAI[id];
       const owned = meta.unlockedYokai.includes(id);
@@ -114,7 +118,9 @@
       return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div></div>${btn}</div>`;
     }).join("");
     // ★D41 タブ化: 茶屋/図鑑を切り替えて表示（タイトルが縦に長くなりテストプレイの妨げになっていた）
-    const chaya = `<div class="shop-items">${rows}</div>`;
+    const chaya = `<div class="shop-items">${rows}</div>
+      <div class="meta-note" style="margin:10px 0 6px">🔮 奥義 — メダルを貯め込んで挑む大強化</div>
+      <div class="shop-items">${lateRows}</div>`;
     const zukan = `<div class="meta-note" style="margin:0 0 8px">解放した妖怪は、記載ステージ以降の「妖怪の市」に並ぶようになります</div>
       <div class="shop-items">${zukanRows}</div>`;
     const tabsHtml = `<div class="title-tabs">

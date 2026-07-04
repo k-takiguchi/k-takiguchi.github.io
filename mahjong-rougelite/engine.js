@@ -57,24 +57,24 @@
     amanojaku:    { name: "天邪鬼", face: "😝", rarity: 2, price: 6, desc: "チャンタ/ジュンチャンのアガリで +2翻" },
     // ---- ★D30 メダル解放妖怪（妖怪茶屋の図鑑で解放 → minStage以降のショップに出現）----
     // 翻インフレ特化: D27の数え役満階段(16翻=5倍満/18翻=6倍満/+2翻毎+8000)を活かし、無限夜行の深部を攻略可能にする。
-    onibi:        { name: "鬼火", face: "🔥", rarity: 2, price: 6, desc: "字牌の刻子1つにつき +1翻", unlock: { cost: 12, minStage: 4 } },
-    nureonna:     { name: "濡女", face: "🐍", rarity: 2, price: 6, desc: "刻子の無いアガリ(全て順子)で +2翻", unlock: { cost: 12, minStage: 4 } },
-    yosuzume:     { name: "夜雀", face: "🐦", rarity: 2, price: 6, desc: "鳴いている手のアガリで +2翻", unlock: { cost: 15, minStage: 5 } },
-    ungaikyo:     { name: "雲外鏡", face: "🪞", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +3翻", unlock: { cost: 20, minStage: 6 } },
-    shutendoji:   { name: "酒呑童子", face: "🍶", rarity: 3, price: 8, desc: "5翻以上のアガリで さらに+2翻", unlock: { cost: 25, minStage: 6 } },
-    umibozu:      { name: "海坊主", face: "🌊", rarity: 3, price: 8, desc: "清一色のアガリで さらに+3翻", unlock: { cost: 25, minStage: 8 } },
-    hakutaku:     { name: "白澤", face: "🐂", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 30, minStage: 9 } },
-    ryujin:       { name: "龍神", face: "🐲", rarity: 3, price: 10, desc: "13翻以上のアガリで さらに+4翻", unlock: { cost: 40, minStage: 10 } },
+    onibi:        { name: "鬼火", face: "🔥", rarity: 2, price: 6, desc: "字牌の刻子1つにつき +1翻", unlock: { cost: 30, minStage: 4 } },
+    nureonna:     { name: "濡女", face: "🐍", rarity: 2, price: 6, desc: "刻子の無いアガリ(全て順子)で +2翻", unlock: { cost: 30, minStage: 4 } },
+    yosuzume:     { name: "夜雀", face: "🐦", rarity: 2, price: 6, desc: "鳴いている手のアガリで +2翻", unlock: { cost: 35, minStage: 5 } },
+    ungaikyo:     { name: "雲外鏡", face: "🪞", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +3翻", unlock: { cost: 45, minStage: 6 } },
+    shutendoji:   { name: "酒呑童子", face: "🍶", rarity: 3, price: 8, desc: "5翻以上のアガリで さらに+2翻", unlock: { cost: 55, minStage: 6 } },
+    umibozu:      { name: "海坊主", face: "🌊", rarity: 3, price: 8, desc: "清一色のアガリで さらに+3翻", unlock: { cost: 55, minStage: 8 } },
+    hakutaku:     { name: "白澤", face: "🐂", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 65, minStage: 9 } },
+    ryujin:       { name: "龍神", face: "🐲", rarity: 3, price: 10, desc: "13翻以上のアガリで さらに+4翻", unlock: { cost: 80, minStage: 10 } },
     // ---- ★D31 追加解放妖怪（2体）----
-    tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 20, minStage: 7 } },
-    tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "役満・数え役満以上のアガリで 点数×1.5", unlock: { cost: 35, minStage: 12 } },
+    tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 45, minStage: 7 } },
+    tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "役満・数え役満以上のアガリで 点数×1.5", unlock: { cost: 75, minStage: 12 } },
     // ---- ★D32 追加解放妖怪（6体: システム/サポート/経済/役満支援）----
-    doraneko:     { name: "ドラ猫", face: "🐱", rarity: 3, price: 8, desc: "毎ラウンド、ランダムな牌1種がドラになる（手の中の1枚につき+1翻）", unlock: { cost: 20, minStage: 6 } },
-    yakousan:     { name: "夜行さん", face: "👺", rarity: 2, price: 6, desc: "么九牌だけのアガリ(混老頭)で +3翻", unlock: { cost: 15, minStage: 7 } },
-    itsumade:     { name: "以津真天", face: "🦅", rarity: 2, price: 7, desc: "ステージ間のツモ回復 +3", unlock: { cost: 25, minStage: 8 }, flags: { recovery: 3 } },
-    takarabune:   { name: "宝船", face: "🚢", rarity: 3, price: 8, desc: "アガリ時、所持小判1枚につき +100点", unlock: { cost: 25, minStage: 9 } },
-    fuujin:       { name: "風神", face: "🌀", rarity: 3, price: 9, desc: "風牌の刻子1つにつき +2翻", unlock: { cost: 25, minStage: 10 } },
-    kudan:        { name: "件", face: "🐄", rarity: 3, price: 9, desc: "役満テンパイ中、ツモに待ち牌を確定で1枚混ぜる（各ラウンド1回）", unlock: { cost: 30, minStage: 10 }, flags: { yakumanDraw: 1 } },
+    doraneko:     { name: "ドラ猫", face: "🐱", rarity: 3, price: 8, desc: "毎ラウンド、ランダムな牌1種がドラになる（手の中の1枚につき+1翻）", unlock: { cost: 45, minStage: 6 } },
+    yakousan:     { name: "夜行さん", face: "👺", rarity: 2, price: 6, desc: "么九牌だけのアガリ(混老頭)で +3翻", unlock: { cost: 35, minStage: 7 } },
+    itsumade:     { name: "以津真天", face: "🦅", rarity: 2, price: 7, desc: "ステージ間のツモ回復 +3", unlock: { cost: 55, minStage: 8 }, flags: { recovery: 3 } },
+    takarabune:   { name: "宝船", face: "🚢", rarity: 3, price: 8, desc: "アガリ時、所持小判1枚につき +100点", unlock: { cost: 55, minStage: 9 } },
+    fuujin:       { name: "風神", face: "🌀", rarity: 3, price: 9, desc: "風牌の刻子1つにつき +2翻", unlock: { cost: 55, minStage: 10 } },
+    kudan:        { name: "件", face: "🐄", rarity: 3, price: 9, desc: "役満テンパイ中、ツモに待ち牌を確定で1枚混ぜる（各ラウンド1回）", unlock: { cost: 65, minStage: 10 }, flags: { yakumanDraw: 1 } },
   };
   const YOKAI_IDS = Object.keys(YOKAI);
 
@@ -150,14 +150,18 @@
   const ITEM_IDS = Object.keys(ITEMS);
 
   // ---- メタ進行（恒久強化） --------------------------------------------------
+  // ★D50 価格改定: 1Lv=5〜10プレイ相当（1周クリア≒19メダル基準）。
+  // late:true の枠開放系は「半分エンドコンテンツ」としてガッツリ高額（15〜25プレイ相当）。
   const META_UPGRADES = {
-    seed_koban:  { name: "軍資金",   face: "💰", desc: "開始時の小判 +2 /Lv", max: 3, costs: [8, 12, 16] },
-    nebari:      { name: "粘り",     face: "🪢", desc: "ステージ間のツモ回復 +1 /Lv", max: 2, costs: [15, 25] },
-    engimono:    { name: "縁起物",   face: "🎏", desc: "アガリの点数 +300 /Lv", max: 2, costs: [12, 20] },
-    slot_plus:   { name: "妖怪の絆", face: "🤝", desc: "妖怪枠 +1 /Lv",       max: 2, costs: [18, 30] },
-    item_slot:   { name: "道具袋",   face: "👝", desc: "消耗品枠 +1 /Lv",     max: 2, costs: [18, 30] },
-    shop_size:   { name: "賑わう市", face: "🏮", desc: "ショップの妖怪 +1",    max: 1, costs: [15] },
-    lucky_start: { name: "はじめの友", face: "🦊", desc: "開始時にランダムな妖怪1体", max: 1, costs: [25] },
+    seed_koban:  { name: "軍資金",   face: "💰", desc: "開始時の小判 +2 /Lv", max: 3, costs: [80, 110, 150] },
+    nebari:      { name: "粘り",     face: "🪢", desc: "ステージ間のツモ回復 +1 /Lv", max: 2, costs: [90, 140] },
+    engimono:    { name: "縁起物",   face: "🎏", desc: "アガリの点数 +300 /Lv", max: 2, costs: [80, 120] },
+    yunomi:      { name: "湯呑み",   face: "🍵", desc: "ツモの上限 +1 /Lv",   max: 2, costs: [100, 160] },
+    fukubukuro:  { name: "福袋",     face: "🎁", desc: "開始時にランダムな道具1つ", max: 1, costs: [120] },
+    slot_plus:   { name: "妖怪の絆", face: "🤝", desc: "妖怪枠 +1 /Lv",       max: 2, costs: [300, 500], late: true },
+    item_slot:   { name: "道具袋",   face: "👝", desc: "消耗品枠 +1 /Lv",     max: 2, costs: [300, 500], late: true },
+    shop_size:   { name: "賑わう市", face: "🏮", desc: "ショップの妖怪 +1",    max: 1, costs: [350], late: true },
+    lucky_start: { name: "はじめの友", face: "🦊", desc: "開始時にランダムな妖怪1体", max: 1, costs: [400], late: true },
   };
   const META_IDS = Object.keys(META_UPGRADES);
   function metaNextCost(id, level) {
@@ -383,7 +387,7 @@
     reset() {
       const o = this._opts || {};
       // ★D25: ツモは全ステージ共通の持ち越しリソース（HP相当）。ステージ間は+3(ボス撃破+3)のみ回復、上限=開始値。
-      this.startDraws = o.draws || 15;
+      this.startDraws = (o.draws || 15) + this.metaLvl("yunomi");
       this.drawsLeft = this.startDraws;
       this._baseSlots = (o.slots || 5) + this.metaLvl("slot_plus");
       this.shopYokaiCount = 3 + this.metaLvl("shop_size");
@@ -404,6 +408,7 @@
       this.extraSlots = 0; // 風呂敷(妖怪枠+1)の購入数 ★D29
       this.furoshikiPrice = 8; // 風呂敷の価格。購入のたびに+4
       this.items = []; // ★A2 消耗品アイテム(所持id配列)
+      if (this.metaLvl("fukubukuro") > 0) this.items.push(shuffle(ITEM_IDS, this.rng)[0]);
       this.phase = "round";
       this.startRound();
     }
