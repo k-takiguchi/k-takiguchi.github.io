@@ -230,6 +230,11 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .confirm-card .confirm-sub { display: block; font-size: 12px; font-weight: 600; color: #8a8575; margin-top: 6px; line-height: 1.6; }
 .confirm-card .btn { display: block; width: 100%; margin-top: 8px; }
 
+/* ---- タイトルの設定行（確認画面ON/OFF）---- */
+.settings-row { display: flex; gap: 8px; margin-top: 10px; }
+.settings-row .btn { flex: 1; margin: 0; }
+.setting-note { font-size: 11px; color: #8a8575; line-height: 1.6; margin: 6px 2px 0; text-align: center; }
+
 /* ---- タイトル & メタショップ ---- */
 .title-screen { padding: 8px 4px 20px; }
 .title-hero { text-align: center; padding: 24px 0 10px; }

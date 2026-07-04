@@ -12,6 +12,7 @@
   let meta = loadMeta();
   if (meta.endlessUnlocked === undefined) meta.endlessUnlocked = false;
   if (!Array.isArray(meta.unlockedYokai)) meta.unlockedYokai = []; // 旧セーブ互換
+  if (meta.confirmActions === undefined) meta.confirmActions = true; // 誤タップ防止の確認画面（既定ON・慣れた人はOFF可）
   let screen = "title";
   let game = null;
   let sel = null; // 交換選択 {zone:'hand'|'tsumo', i}
@@ -33,6 +34,8 @@
 
   // ---- 確認ダイアログ（誤タップ防止）----
   function showConfirm(opts) {
+    // 設定で確認画面OFF（慣れた人向け）の場合は即実行
+    if (!meta.confirmActions) { if (opts.onYes) opts.onYes(); return; }
     pendingConfirm = opts; // { message, yesLabel, noLabel?, onYes }
     renderConfirm();
   }
@@ -158,7 +161,11 @@
        <div class="medal-bar">所持メダル 🏅 <b>${meta.medals}</b></div>
        ${tabsHtml}
        ${modeHtml}
-       <button class="btn small indigo help-open" data-help="1">❓ 遊び方（はじめての方へ）</button>
+       <div class="settings-row">
+         <button class="btn small indigo help-open" data-help="1">❓ 遊び方（はじめての方へ）</button>
+         <button class="btn small ${meta.confirmActions ? "indigo" : "gold"} setting-toggle" data-toggleconfirm="1">${meta.confirmActions ? "🛡 確認画面: ON" : "⚡ 確認画面: OFF"}</button>
+       </div>
+       <div class="setting-note">「確認画面」= 引き直し・鳴き・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
        <button class="btn play start-btn" data-startrun="1">▶ ${selectedMode === "endless" ? "無限夜行へ出発" : "百鬼夜行へ出発"}</button>
        <div class="meta-note">手牌13枚とツモ5枚を自由に交換。ツモの1枚で手が完成＝アガリ！役と翻で得点。</div>`;
   }
@@ -507,7 +514,7 @@
   function toTitle() { screen = "title"; sel = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm]");
     if (!t) return;
     // 確認ダイアログの応答（他の操作より優先）
     if (t.dataset.confirmno) { pendingConfirm = null; renderConfirm(); return; }
@@ -515,6 +522,7 @@
     // 確認ダイアログ表示中は背後の操作を無効化（誤タップ防止）
     if (pendingConfirm) return;
     if (t.dataset.titletab) { titleTab = t.dataset.titletab; renderTitle(); return; } // ★D41 タイトルのタブ切替
+    if (t.dataset.toggleconfirm) { meta.confirmActions = !meta.confirmActions; saveMeta(); renderTitle(); return; } // 確認画面ON/OFF（慣れた人向け）
     if (t.dataset.toshop) { pendingDropIdx = null; game.enterShop(); setMessage(""); render(); return; } // ★D38 クリア画面→妖怪の市
     if (t.dataset.yokaipanel) { yokaiPanelId = (yokaiPanelId === t.dataset.yokaipanel) ? null : t.dataset.yokaipanel; renderYokai(); return; }
     if (t.dataset.itempanel != null) { const i = parseInt(t.dataset.itempanel, 10); itemPanelId = (itemPanelId === i) ? null : i; pendingShinzuu = null; renderItems(); return; }
