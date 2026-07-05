@@ -408,10 +408,11 @@
     const teaHtml = shop.tea ? `<div class="offer tile-offer"><span class="face">🍵</span><div class="info"><div class="n">お茶（ツモ +3）</div><div class="d">ツモ回数を3回復（現在 ${game.drawsLeft}/${game.startDraws}）</div></div><button class="btn small indigo" ${(!teaFull && game.koban >= game.teaPrice) ? "" : "disabled"} data-tea="1">${teaFull ? "満タン" : game.teaPrice + "小判"}</button></div>` : "";
     const kanroHtml = shop.kanro ? `<div class="offer tile-offer"><span class="face">✨</span><div class="info"><div class="n">甘露（ツモ全回復）</div><div class="d">ツモ回数を${game.startDraws}まで全回復（レア入荷）</div></div><button class="btn small gold" ${(!teaFull && game.koban >= shop.kanroPrice) ? "" : "disabled"} data-kanro="1">${shop.kanroPrice}小判</button></div>` : "";
     const furoshikiHtml = shop.furoshiki ? `<div class="offer tile-offer"><span class="face">🎒</span><div class="info"><div class="n">風呂敷（妖怪枠 +1）</div><div class="d">妖怪を持てる数が増える（現在 ${game.yokaiSlots}/10）</div></div><button class="btn small gold" ${game.koban >= game.furoshikiPrice ? "" : "disabled"} data-furoshiki="1">${game.furoshikiPrice}小判</button></div>` : "";
-    const drawsHtml = teaHtml + kanroHtml + furoshikiHtml;
-    // ★D52: 毎店1回目は全員無料＋提灯お化けで+3回
-    const freeLimit = 1 + (game.yokai.includes("chochin") ? MJ.YOKAI.chochin.flags.freeRerollLimit : 0);
-    const freeLeft = Math.max(0, freeLimit - (game.freeRerollsUsed || 0));
+    // ★D53 招き鈴: 無料リロール+3回（ラン中持ち越し・即時反映）
+    const suzuHtml = shop.suzu ? `<div class="offer tile-offer"><span class="face">🔔</span><div class="info"><div class="n">招き鈴（無料引き直し +3）</div><div class="d">市の引き直し無料回数を3回補充（現在 残${game.freeRerollAvailable()}回）</div></div><button class="btn small indigo" ${game.koban >= game.suzuPrice ? "" : "disabled"} data-suzu="1">${game.suzuPrice}小判</button></div>` : "";
+    const drawsHtml = teaHtml + kanroHtml + furoshikiHtml + suzuHtml;
+    // ★D53: 無料リロール=ラン中3回(共有ストック)＋提灯お化けの訪問毎3回。使い切ったら1小判
+    const freeLeft = game.freeRerollAvailable();
     const rerollLabel = freeLeft > 0 ? `(無料 残${freeLeft})` : "(1小判)";
     $("shop").innerHTML =
       `<h2>🏮 妖怪の市 🏮</h2>
@@ -474,8 +475,8 @@
     const medalLine = `<div class="earned">獲得メダル 🏅 +${lastEarned}　（所持 ${meta.medals}）</div>`;
     if (game.phase === "won") {
       ov.className = "overlay win";
-      const endlessBtn = `<button class="btn play gold" data-continueendless="1">♾️ このまま無限夜行へ続ける</button>`;
-      ov.innerHTML = `<div class="card"><div class="emoji">🎉🦊🏮</div><h1>百鬼夜行 制覇！</h1><p>全8戦を打ち切りました。<br>仲間の妖怪: ${game.yokai.length}体 ／ 総アガリ ${game.totalAgari}回</p>${medalLine}<p class="unlock-note">♾️ 無限夜行モードが解禁されました！</p>${endlessBtn}<button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
+      // ★D53: 「このまま無限夜行へ続ける」は廃止（無限夜行はボス構成が異なる別モードのため、タイトルから新規ランで開始する）
+      ov.innerHTML = `<div class="card"><div class="emoji">🎉🦊🏮</div><h1>百鬼夜行 制覇！</h1><p>全8戦を打ち切りました。<br>仲間の妖怪: ${game.yokai.length}体 ／ 総アガリ ${game.totalAgari}回</p>${medalLine}<p class="unlock-note">♾️ 無限夜行モードが解禁されました！<br>タイトルのモード選択から挑戦できます</p><button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
     } else {
       ov.className = "overlay lose";
       const label = game.mode === "endless" ? `♾️ 無限夜行 ${game.roundIndex + 1}戦目「${game.currentRound().name}」` : `道中 ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}「${game.currentRound().name}」`;
@@ -507,15 +508,10 @@
     itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null;
     screen = "run"; setMessage(""); render();
   }
-  function doContinueEndless() {
-    game.mode = "endless";
-    game.enterShop();
-    render();
-  }
   function toTitle() { screen = "title"; sel = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-continueendless],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm]");
     if (!t) return;
     // 確認ダイアログの応答（他の操作より優先）
     if (t.dataset.confirmno) { pendingConfirm = null; renderConfirm(); return; }
@@ -583,7 +579,6 @@
     if (t.dataset.metabuy) return buyMeta(t.dataset.metabuy);
     if (t.dataset.mode) { selectedMode = t.dataset.mode; renderTitle(); return; }
     if (t.dataset.startrun) return startRun();
-    if (t.dataset.continueendless) return doContinueEndless();
     if (t.dataset.totitle || t.dataset.home) return toTitle();
     if (t.dataset.call != null) return doCall(parseInt(t.dataset.call, 10));
     if (t.dataset.zone) return onTile(t.dataset.zone, parseInt(t.dataset.i, 10));
@@ -605,6 +600,7 @@
     if (t.dataset.tea) { const r = game.buyTea(); setMessage(r.ok ? "🍵 ツモが3回復した" : (r.message || "")); render(); return; }
     if (t.dataset.kanro) { const r = game.buyKanro(); setMessage(r.ok ? "✨ ツモが全回復した！" : (r.message || "")); render(); return; }
     if (t.dataset.furoshiki) { const r = game.buyFuroshiki(); setMessage(r.ok ? "🎒 妖怪枠が1つ増えた！" : (r.message || "")); render(); return; }
+    if (t.dataset.suzu) { const r = game.buySuzu(); setMessage(r.ok ? "🔔 無料引き直しが3回増えた！" : (r.message || "")); render(); return; }
     if (t.dataset.reroll) { pendingSwapId = null; pendingSwapItemId = null; const r = game.reroll(); setMessage(r.ok ? "" : (r.message || "")); render(); return; }
     if (t.dataset.next) { game.leaveShop(); sel = null; pendingSwapId = null; pendingSwapItemId = null; setMessage(""); render(); return; }
   });

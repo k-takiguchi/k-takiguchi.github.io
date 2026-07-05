@@ -407,6 +407,10 @@
       this.roundIndex = 0;
       this.lossNegateUsed = 0;
       this.teaPrice = 4; // お茶(ツモ+3)の価格。ラン中はリセットせず購入のたびに+1
+      // ★D53: 無料リロールは「ラン中3回」の共有ストック（D52の毎店1回無料は多すぎたためユーザーFBで変更）。
+      // 招き鈴(ショップ常設・即時反映)で+3回ずつ補充できる。価格は購入のたびに+2。
+      this.freeRerollsLeft = 3;
+      this.suzuPrice = 6;
       this.extraSlots = 0; // 風呂敷(妖怪枠+1)の購入数 ★D29
       this.furoshikiPrice = 8; // 風呂敷の価格。購入のたびに+4
       this.items = []; // ★A2 消耗品アイテム(所持id配列)
@@ -913,19 +917,35 @@
       const hasKanro = this.rng() < 0.25;
       // ★D29: 風呂敷(妖怪枠+1)は30%で入荷。枠が上限(10)なら並ばない。
       const hasFuroshiki = this.rng() < 0.30 && this.yokaiSlots < 10;
-      this.shop = { yokai: yokaiOffers, items: itemOffers.map((id) => ({ id, price: ITEMS[id].price })), order, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki };
+      this.shop = { yokai: yokaiOffers, items: itemOffers.map((id) => ({ id, price: ITEMS[id].price })), order, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki, suzu: true };
+    }
+    // 無料リロールの内訳: 提灯お化け=1訪問につき3回(訪問毎リセット・優先消費) → ラン共有ストック(freeRerollsLeft) → 1小判。
+    // ★D53: D52の「毎店1回無料」は多すぎたため「ラン中3回(+招き鈴で補充)」へ変更。
+    freeRerollAvailable() {
+      const chochinLimit = yokaiFlag(this.yokai, "freeRerollLimit", "sum");
+      return Math.max(0, chochinLimit - (this.freeRerollsUsed || 0)) + (this.freeRerollsLeft || 0);
     }
     reroll() {
       if (this.phase !== "shop") return { ok: false };
-      // ★D52: 全プレイヤー共通で毎店1回目のリロールは無料（小判経済が細く実質リロール不能だったFBへの対策）。
-      // 提灯お化けはさらに+3回無料（無限リロールで狙い撃ちできないよう上限あり）。
-      const freeLimit = 1 + yokaiFlag(this.yokai, "freeRerollLimit", "sum");
-      const freeAvailable = (this.freeRerollsUsed || 0) < freeLimit;
-      const cost = freeAvailable ? 0 : 1;
-      if (this.koban < cost) return { ok: false, message: "小判が足りません" };
-      this.koban -= cost;
-      if (freeAvailable) this.freeRerollsUsed = (this.freeRerollsUsed || 0) + 1;
+      const chochinLimit = yokaiFlag(this.yokai, "freeRerollLimit", "sum");
+      if ((this.freeRerollsUsed || 0) < chochinLimit) {
+        this.freeRerollsUsed = (this.freeRerollsUsed || 0) + 1; // 提灯お化け枠（訪問毎リセット）
+      } else if ((this.freeRerollsLeft || 0) > 0) {
+        this.freeRerollsLeft--; // ラン共有ストック
+      } else {
+        if (this.koban < 1) return { ok: false, message: "小判が足りません" };
+        this.koban -= 1;
+      }
       this.rollShop(); return { ok: true };
+    }
+    // ★D53 招き鈴: 無料リロール+3回（ラン中持ち越し・即時反映）。ショップ常設、購入のたびに+2値上がり。
+    buySuzu() {
+      if (this.phase !== "shop" || !this.shop.suzu) return { ok: false };
+      if (this.koban < this.suzuPrice) return { ok: false, message: "小判が足りません" };
+      this.koban -= this.suzuPrice;
+      this.suzuPrice += 2;
+      this.freeRerollsLeft = (this.freeRerollsLeft || 0) + 3;
+      return { ok: true };
     }
     buyYokai(id) {
       if (this.phase !== "shop" || !this.shop.yokai.includes(id)) return { ok: false, message: "在庫にありません" };
