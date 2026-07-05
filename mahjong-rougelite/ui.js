@@ -165,7 +165,7 @@
          <button class="btn small indigo help-open" data-help="1">❓ 遊び方（はじめての方へ）</button>
          <button class="btn small ${meta.confirmActions ? "indigo" : "gold"} setting-toggle" data-toggleconfirm="1">${meta.confirmActions ? "🛡 確認画面: ON" : "⚡ 確認画面: OFF"}</button>
        </div>
-       <div class="setting-note">「確認画面」= 引き直し・鳴き・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
+       <div class="setting-note">「確認画面」= 手牌引き直し・鳴き・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
        <button class="btn play start-btn" data-startrun="1">▶ ${selectedMode === "endless" ? "無限夜行へ出発" : "百鬼夜行へ出発"}</button>
        <div class="meta-note">手牌13枚とツモ5枚を自由に交換。ツモの1枚で手が完成＝アガリ！役と翻で得点。</div>`;
   }
@@ -409,7 +409,8 @@
     const kanroHtml = shop.kanro ? `<div class="offer tile-offer"><span class="face">✨</span><div class="info"><div class="n">甘露（ツモ全回復）</div><div class="d">ツモ回数を${game.startDraws}まで全回復（レア入荷）</div></div><button class="btn small gold" ${(!teaFull && game.koban >= shop.kanroPrice) ? "" : "disabled"} data-kanro="1">${shop.kanroPrice}小判</button></div>` : "";
     const furoshikiHtml = shop.furoshiki ? `<div class="offer tile-offer"><span class="face">🎒</span><div class="info"><div class="n">風呂敷（妖怪枠 +1）</div><div class="d">妖怪を持てる数が増える（現在 ${game.yokaiSlots}/10）</div></div><button class="btn small gold" ${game.koban >= game.furoshikiPrice ? "" : "disabled"} data-furoshiki="1">${game.furoshikiPrice}小判</button></div>` : "";
     const drawsHtml = teaHtml + kanroHtml + furoshikiHtml;
-    const freeLimit = game.yokai.includes("chochin") ? MJ.YOKAI.chochin.flags.freeRerollLimit : 0;
+    // ★D52: 毎店1回目は全員無料＋提灯お化けで+3回
+    const freeLimit = 1 + (game.yokai.includes("chochin") ? MJ.YOKAI.chochin.flags.freeRerollLimit : 0);
     const freeLeft = Math.max(0, freeLimit - (game.freeRerollsUsed || 0));
     const rerollLabel = freeLeft > 0 ? `(無料 残${freeLeft})` : "(1小判)";
     $("shop").innerHTML =
@@ -664,17 +665,13 @@
       },
     });
   }
+  // 化け草鞋のツモ引き直しは影響が小さい（手牌は崩れない）ため確認なしで即実行。
+  // 確認を出すのは手牌ごと引き直すすねこすり(doRedeal)側だけ（誤タップ時の影響が大きい）。
   function doRerollTsumo() {
-    showConfirm({
-      message: `🔄 ツモを引き直しますか？<br><span class="confirm-sub">今のツモは新しく引き直されます（無料 残り ${game.freeTsumoRerollLeft} 回）</span>`,
-      yesLabel: "引き直す",
-      onYes: () => {
-        const res = game.rerollTsumo();
-        sel = null;
-        setMessage(res.ok ? "🔄 ツモを引き直した（無料）" : (res.message || ""));
-        render();
-      },
-    });
+    const res = game.rerollTsumo();
+    sel = null;
+    setMessage(res.ok ? "🔄 ツモを引き直した（無料）" : (res.message || ""));
+    render();
   }
   function doCall(k) {
     const opts = game.callOptions();

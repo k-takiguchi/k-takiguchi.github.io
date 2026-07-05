@@ -29,7 +29,7 @@
     bakedanuki:   { name: "化け狸", face: "🦝", rarity: 3, price: 8, desc: "アガリの翻を最低2翻に" },
     kitsunebi:    { name: "狐火", face: "🦊", rarity: 3, price: 8, desc: "アガリの点数 ×1.5" },
     nurikabe:     { name: "ぬりかべ", face: "🧱", rarity: 2, price: 6, desc: "1ランに1度、敗北を無効化(ツモ回復)", flags: { lossNegate: 1 } },
-    chochin:      { name: "提灯お化け", face: "🏮", rarity: 1, price: 4, desc: "ショップのリロールが1回の訪問につき3回まで無料", flags: { freeRerollLimit: 3 } },
+    chochin:      { name: "提灯お化け", face: "🏮", rarity: 1, price: 4, desc: "ショップの無料リロール +3回/訪問", flags: { freeRerollLimit: 3 } },
     mitsumekozo:  { name: "三つ目小僧", face: "👁️", rarity: 1, price: 4, desc: "次のツモを先読み", flags: { peek: 3 } },
     azukiarai:    { name: "小豆洗い", face: "🫘", rarity: 1, price: 4, desc: "七対子で +2翻" },
     kamaitachi:   { name: "鎌鼬", face: "🌪️", rarity: 2, price: 6, desc: "この道中のアガリ数×300点 を加点" },
@@ -57,20 +57,22 @@
     amanojaku:    { name: "天邪鬼", face: "😝", rarity: 2, price: 6, desc: "チャンタ/ジュンチャンのアガリで +2翻" },
     // ---- ★D30 メダル解放妖怪（妖怪茶屋の図鑑で解放 → minStage以降のショップに出現）----
     // 翻インフレ特化: D27の数え役満階段(16翻=5倍満/18翻=6倍満/+2翻毎+8000)を活かし、無限夜行の深部を攻略可能にする。
-    onibi:        { name: "鬼火", face: "🔥", rarity: 2, price: 6, desc: "字牌の刻子1つにつき +1翻", unlock: { cost: 30, minStage: 4 } },
-    nureonna:     { name: "濡女", face: "🐍", rarity: 2, price: 6, desc: "刻子の無いアガリ(全て順子)で +2翻", unlock: { cost: 30, minStage: 4 } },
-    yosuzume:     { name: "夜雀", face: "🐦", rarity: 2, price: 6, desc: "鳴いている手のアガリで +2翻", unlock: { cost: 35, minStage: 5 } },
-    ungaikyo:     { name: "雲外鏡", face: "🪞", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +3翻", unlock: { cost: 45, minStage: 6 } },
-    shutendoji:   { name: "酒呑童子", face: "🍶", rarity: 3, price: 8, desc: "5翻以上のアガリで さらに+2翻", unlock: { cost: 55, minStage: 6 } },
+    // ★D52 コスト改定: 浅いステージ(minStage4〜7)組は10〜25へ引き下げ（初心者=2〜3🏅/ランでも3〜5ランで1体解放でき、
+    // 周回強化の実感を作る）。St8以降の深部組はエンドコンテンツとして55〜80を維持。
+    onibi:        { name: "鬼火", face: "🔥", rarity: 2, price: 6, desc: "字牌の刻子1つにつき +1翻", unlock: { cost: 10, minStage: 4 } },
+    nureonna:     { name: "濡女", face: "🐍", rarity: 2, price: 6, desc: "刻子の無いアガリ(全て順子)で +2翻", unlock: { cost: 10, minStage: 4 } },
+    yosuzume:     { name: "夜雀", face: "🐦", rarity: 2, price: 6, desc: "鳴いている手のアガリで +2翻", unlock: { cost: 15, minStage: 5 } },
+    ungaikyo:     { name: "雲外鏡", face: "🪞", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +3翻", unlock: { cost: 20, minStage: 6 } },
+    shutendoji:   { name: "酒呑童子", face: "🍶", rarity: 3, price: 8, desc: "5翻以上のアガリで さらに+2翻", unlock: { cost: 25, minStage: 6 } },
     umibozu:      { name: "海坊主", face: "🌊", rarity: 3, price: 8, desc: "清一色のアガリで さらに+3翻", unlock: { cost: 55, minStage: 8 } },
     hakutaku:     { name: "白澤", face: "🐂", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 65, minStage: 9 } },
     ryujin:       { name: "龍神", face: "🐲", rarity: 3, price: 10, desc: "13翻以上のアガリで さらに+4翻", unlock: { cost: 80, minStage: 10 } },
     // ---- ★D31 追加解放妖怪（2体）----
-    tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 45, minStage: 7 } },
+    tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 20, minStage: 7 } },
     tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "役満・数え役満以上のアガリで 点数×1.5", unlock: { cost: 75, minStage: 12 } },
     // ---- ★D32 追加解放妖怪（6体: システム/サポート/経済/役満支援）----
-    doraneko:     { name: "ドラ猫", face: "🐱", rarity: 3, price: 8, desc: "毎ラウンド、ランダムな牌1種がドラになる（手の中の1枚につき+1翻）", unlock: { cost: 45, minStage: 6 } },
-    yakousan:     { name: "夜行さん", face: "👺", rarity: 2, price: 6, desc: "么九牌だけのアガリ(混老頭)で +3翻", unlock: { cost: 35, minStage: 7 } },
+    doraneko:     { name: "ドラ猫", face: "🐱", rarity: 3, price: 8, desc: "毎ラウンド、ランダムな牌1種がドラになる（手の中の1枚につき+1翻）", unlock: { cost: 20, minStage: 6 } },
+    yakousan:     { name: "夜行さん", face: "👺", rarity: 2, price: 6, desc: "么九牌だけのアガリ(混老頭)で +3翻", unlock: { cost: 15, minStage: 7 } },
     itsumade:     { name: "以津真天", face: "🦅", rarity: 2, price: 7, desc: "ステージ間のツモ回復 +3", unlock: { cost: 55, minStage: 8 }, flags: { recovery: 3 } },
     takarabune:   { name: "宝船", face: "🚢", rarity: 3, price: 8, desc: "アガリ時、所持小判1枚につき +100点", unlock: { cost: 55, minStage: 9 } },
     fuujin:       { name: "風神", face: "🌀", rarity: 3, price: 9, desc: "風牌の刻子1つにつき +2翻", unlock: { cost: 55, minStage: 10 } },
@@ -791,12 +793,14 @@
     }
     _finishRoundWin(out) {
       this.roundsCleared++;
-      const interestRaw = Math.min(5, Math.floor(this.koban / 5));
+      // ★D52: 利子を5枚ごと→3枚ごと+1へ緩和(上限5は維持)。中盤の店頭小判が5〜8枚に張り付き利子が機能していなかったFBへの対策。
+      const interestRaw = Math.min(5, Math.floor(this.koban / 3));
       const rmult = Math.max(1, yokaiFlag(this.yokai, "rewardMult", "sum")); // 金霊
       // ★A1 v3 吝嗇(kechi): このボス戦のクリア報酬・利子(表示)を半減（切り上げ）。破魔矢で無効化されていれば通常通り。
       const isKechi = this.effectiveGimmick() === "kechi";
       // ★D25: 残ツモの小判ボーナスは廃止（残ツモの持ち越し自体が速アガリの報酬）
-      let reward = (3 + interestRaw) * rmult;
+      // ★D52: ボス撃破は基礎報酬3→5（道中で妖怪5体+道具2枠を埋め切れない小判不足への対策）
+      let reward = ((this.currentRound().boss ? 5 : 3) + interestRaw) * rmult;
       if (isKechi) reward = Math.ceil(reward / 2);
       const interest = isKechi ? Math.ceil(interestRaw / 2) : interestRaw;
       this.koban += reward;
@@ -841,9 +845,11 @@
 
     // ---- ショップ -----------------------------------------------------------
     enterShop() { this.phase = "shop"; this.freeRerollsUsed = 0; this.rollShop(); }
-    // レア度が高いほど出現しにくい重み付き抽選（★=10 / ★★=4 / ★★★=1）。重複無しでn体選ぶ（未指定はshopYokaiCount）。
+    // レア度が高いほど出現しにくい重み付き抽選。重複無しでn体選ぶ（未指定はshopYokaiCount）。
+    // ★D52: 妖怪の重みを 10/4/1 → 8/5/2 へ調整（★★★が1周で提示される率 実測8%→約16%。
+    // 「狙ったビルドが組めない」FBへの対策。消耗品側(_weightedItemPool)はプール8種と小さいため10/4/1のまま）。
     _weightedYokaiPool(pool, count) {
-      const W = { 1: 10, 2: 4, 3: 1 };
+      const W = { 1: 8, 2: 5, 3: 2 };
       const remaining = pool.map((id) => ({ id, w: W[YOKAI[id].rarity] || 1 }));
       const picked = [];
       const n = Math.min(count == null ? this.shopYokaiCount : count, remaining.length);
@@ -911,8 +917,9 @@
     }
     reroll() {
       if (this.phase !== "shop") return { ok: false };
-      // 提灯お化け: 1回のショップ訪問につき指定回数まで無料（無限リロールで狙い撃ちできないよう上限あり）
-      const freeLimit = yokaiFlag(this.yokai, "freeRerollLimit", "sum");
+      // ★D52: 全プレイヤー共通で毎店1回目のリロールは無料（小判経済が細く実質リロール不能だったFBへの対策）。
+      // 提灯お化けはさらに+3回無料（無限リロールで狙い撃ちできないよう上限あり）。
+      const freeLimit = 1 + yokaiFlag(this.yokai, "freeRerollLimit", "sum");
       const freeAvailable = (this.freeRerollsUsed || 0) < freeLimit;
       const cost = freeAvailable ? 0 : 1;
       if (this.koban < cost) return { ok: false, message: "小判が足りません" };
