@@ -27,7 +27,7 @@
     tengu:        { name: "天狗", face: "👺", rarity: 2, price: 6, desc: "混一色/清一色で +2翻" },
     yukionna:     { name: "雪女", face: "⛄", rarity: 2, price: 6, desc: "ステージ間のツモ回復 +2", flags: { recovery: 2 } },
     bakedanuki:   { name: "化け狸", face: "🦝", rarity: 3, price: 8, desc: "アガリの翻を最低2翻に" },
-    kitsunebi:    { name: "狐火", face: "🦊", rarity: 3, price: 8, desc: "5翻以上のアガリで 点数×1.5" }, // ★D54 玉藻前と効果交換(旧:無条件×1.5)。役満条件は初期ステージで恩恵が無いため5翻条件に
+    kitsunebi:    { name: "狐火", face: "🦊", rarity: 3, price: 8, desc: "断么九のアガリで 点数×1.5" }, // ★D54で玉藻前と効果交換→D55: 5翻条件はSt8まで「5翻=目標8000到達済み」で過剰＝購入動機が無限専用というFBにより断么九条件へ再改定
     nurikabe:     { name: "ぬりかべ", face: "🧱", rarity: 2, price: 6, desc: "1ランに1度、敗北を無効化(ツモ回復)", flags: { lossNegate: 1 } },
     chochin:      { name: "提灯お化け", face: "🏮", rarity: 1, price: 4, desc: "ショップの無料リロール +3回/訪問", flags: { freeRerollLimit: 3 } },
     mitsumekozo:  { name: "三つ目小僧", face: "👁️", rarity: 1, price: 4, desc: "次のツモを先読み", flags: { peek: 3 } },
@@ -147,7 +147,7 @@
     hamaya:     { name: "破魔矢", face: "🏹", rarity: 3, price: 9, desc: "このボス戦のギミックを無効化", category: "A1対策", usable: "round" },
     juzu:       { name: "数珠", face: "📿", rarity: 3, price: 8, desc: "このボス戦の目標点-20%", category: "敵弱体", usable: "round" },
     kozuchi:    { name: "打ち出の小槌", face: "🔨", rarity: 1, price: 5, desc: "小判+10(即時)", category: "経済", usable: "anytime" },
-    yobimizu:   { name: "呼び水", face: "💧", rarity: 1, price: 4, desc: "ショップを1回無料リロール（★2以上だけが並ぶ）", category: "ショップ", usable: "shop" }, // ★D54 招き鈴(無料リロール補充)の追加で単純リロールは完全下位互換化→「質」側の効果に再設計
+    yobimizu:   { name: "呼び水", face: "💧", rarity: 1, price: 4, desc: "ショップを1回無料リロール（★2以上を1枠確定）", category: "ショップ", usable: "shop" }, // ★D54 招き鈴の追加で単純リロールは下位互換化→質のリロールに。D55: 全枠★2確定は強すぎ→1枠のみ確定
   };
   const ITEM_IDS = Object.keys(ITEMS);
 
@@ -307,8 +307,8 @@
     }
     // 縁起物(メタ): アガリの点数+300/Lv
     if (st.engimono) { flat += 300 * st.engimono; note(`縁起物: +${300 * st.engimono}点`); }
-    // ★D54 効果交換: 狐火=5翻以上(役満含む)で×1.5 / 玉藻前=無条件×1.5（旧は玉藻前が狐火の完全下位互換だった）
-    if (owned.includes("kitsunebi") && (isYakuman || han >= 5)) { times.push(1.5); note("狐火: 点数×1.5"); }
+    // ★D54効果交換→D55: 狐火=断么九で×1.5（安手の底上げがクリアに直結＝キャンペーン全域で動機が出る） / 玉藻前=無条件×1.5
+    if (owned.includes("kitsunebi") && hasYaku("断么九")) { times.push(1.5); note("狐火: 点数×1.5"); }
     if (owned.includes("tamamonomae")) { times.push(1.5); note("玉藻前: 点数×1.5"); }
 
     // ★A1 重石(omoishi): このボス戦の最終翻-1（下限1翻・役満は対象外）。scoreHanFu直前で適用。
@@ -897,8 +897,7 @@
       }
       return picked;
     }
-    // ★D54: minRarity指定時は妖怪・消耗品ともそのレア度以上だけを抽選（呼び水の「★2以上確定リロール」用）
-    rollShop(minRarity) {
+    rollShop() {
       // ★D48: 上枠(shopYokaiCount)を妖怪と消耗品で「同じ枠から」混在配分する。
       // 各枠は独立に確率ITEM_RATEで消耗品、それ以外は妖怪。表示順もスロット順(order)で混ぜる。
       // 妖怪が主役のため「最低1枠は妖怪」を保証（消耗品はtotal-1まで）。
@@ -907,11 +906,10 @@
       let itemN = 0;
       for (let k = 0; k < total; k++) if (this.rng() < ITEM_RATE) itemN++;
       itemN = Math.min(itemN, total - 1); // 最低1枠は妖怪を残す
-      const ypool = YOKAI_IDS.filter((id) => !this.yokai.includes(id) && this._yokaiAvailable(id) && (!minRarity || YOKAI[id].rarity >= minRarity));
+      const ypool = YOKAI_IDS.filter((id) => !this.yokai.includes(id) && this._yokaiAvailable(id));
       const yokaiOffers = this._weightedYokaiPool(ypool, Math.min(total - itemN, ypool.length));
       itemN = total - yokaiOffers.length; // 妖怪プール枯渇時は消耗品で埋める
-      const ipool = ITEM_IDS.filter((id) => !minRarity || ITEMS[id].rarity >= minRarity);
-      const itemOffers = this._weightedItemPool(ipool, Math.min(itemN, ipool.length));
+      const itemOffers = this._weightedItemPool(ITEM_IDS.slice(), Math.min(itemN, ITEM_IDS.length));
       // スロット順に妖怪/消耗品を混ぜた表示順（決定的rng）
       const order = [];
       const yq = yokaiOffers.slice(), iq = itemOffers.slice();
@@ -1060,9 +1058,22 @@
           break;
         }
         case "yobimizu": {
-          // 呼び水: ショップを1回無料リロールし、★2以上だけが並ぶ(shop中のみ)。★D54で「質」側の効果に再設計。
+          // 呼び水: ショップを1回無料リロールし、妖怪1枠だけ★2以上を保証(shop中のみ)。
+          // ★D54で「質」側の効果に再設計→D55: 全枠★2以上確定は強すぎ(ユーザーFB)なので1枠のみ確定に。
           if (this.phase !== "shop") return { ok: false, message: "今は使えません" };
-          this.rollShop(2);
+          this.rollShop();
+          const hasR2 = this.shop.yokai.some((yid) => YOKAI[yid].rarity >= 2);
+          if (!hasR2 && this.shop.yokai.length) {
+            const pool = YOKAI_IDS.filter((yid) => !this.yokai.includes(yid) && this._yokaiAvailable(yid)
+              && YOKAI[yid].rarity >= 2 && !this.shop.yokai.includes(yid));
+            const picked = this._weightedYokaiPool(pool, 1);
+            if (picked.length) {
+              const replaced = this.shop.yokai[0];
+              this.shop.yokai[0] = picked[0];
+              const oe = (this.shop.order || []).find((e) => e.kind === "yokai" && e.id === replaced);
+              if (oe) oe.id = picked[0];
+            }
+          }
           break;
         }
         default:
