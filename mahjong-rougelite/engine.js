@@ -22,12 +22,12 @@
     rokurokubi:   { name: "ろくろ首", face: "🦒", rarity: 1, price: 4, desc: "順子3つ以上のアガリで +1翻" },
     tofukozo:     { name: "豆腐小僧", face: "🍮", rarity: 1, price: 4, desc: "白を含むアガリで 符+10" },
     ittanmomen:   { name: "一反木綿", face: "🧻", rarity: 2, price: 6, desc: "一気通貫か三色を含むと +1翻" },
-    zashikiwarashi:{ name: "座敷童", face: "🧒", rarity: 1, price: 4, desc: "アガるたび 小判+1", flags: { kobanOnAgari: 1 } },
+    zashikiwarashi:{ name: "座敷童", face: "🧒", rarity: 1, price: 4, desc: "アガるたび 小判+2", flags: { kobanOnAgari: 2 } }, // ★D54 +1→+2(雨降小僧との格差是正)
     kappa:        { name: "河童", face: "🐢", rarity: 1, price: 4, desc: "索子1枚につき 符+2" },
     tengu:        { name: "天狗", face: "👺", rarity: 2, price: 6, desc: "混一色/清一色で +2翻" },
     yukionna:     { name: "雪女", face: "⛄", rarity: 2, price: 6, desc: "ステージ間のツモ回復 +2", flags: { recovery: 2 } },
     bakedanuki:   { name: "化け狸", face: "🦝", rarity: 3, price: 8, desc: "アガリの翻を最低2翻に" },
-    kitsunebi:    { name: "狐火", face: "🦊", rarity: 3, price: 8, desc: "アガリの点数 ×1.5" },
+    kitsunebi:    { name: "狐火", face: "🦊", rarity: 3, price: 8, desc: "5翻以上のアガリで 点数×1.5" }, // ★D54 玉藻前と効果交換(旧:無条件×1.5)。役満条件は初期ステージで恩恵が無いため5翻条件に
     nurikabe:     { name: "ぬりかべ", face: "🧱", rarity: 2, price: 6, desc: "1ランに1度、敗北を無効化(ツモ回復)", flags: { lossNegate: 1 } },
     chochin:      { name: "提灯お化け", face: "🏮", rarity: 1, price: 4, desc: "ショップの無料リロール +3回/訪問", flags: { freeRerollLimit: 3 } },
     mitsumekozo:  { name: "三つ目小僧", face: "👁️", rarity: 1, price: 4, desc: "次のツモを先読み", flags: { peek: 3 } },
@@ -41,7 +41,7 @@
     daidarabocchi:{ name: "だいだらぼっち", face: "🗻", rarity: 3, price: 8, desc: "全てのアガリで 符+20" },
     // ---- サポート/ユーティリティ系（三つ目小僧の仲間） ----
     hyakume:      { name: "百目", face: "👀", rarity: 2, price: 7, desc: "ツモが6枚になる（毎回1枚多く選べる）", flags: { tsumoSize: 1 } },
-    amefurikozo:  { name: "雨降小僧", face: "☔", rarity: 1, price: 4, desc: "ツモを引くたび 小判+1", flags: { kobanOnDraw: 1 } },
+    amefurikozo:  { name: "雨降小僧", face: "☔", rarity: 1, price: 4, desc: "ツモを2回引くごとに 小判+1", flags: { kobanPer2Draws: 1 } }, // ★D54 毎回+1はラン全体+40相当で他の経済★1を圧倒→半減
     wanyudo:      { name: "輪入道", face: "🎡", rarity: 2, price: 6, desc: "ショップの妖怪が2小判引き", flags: { shopDiscount: 2 } },
     sunekosuri:   { name: "すねこすり", face: "🐕", rarity: 1, price: 5, desc: "各ラウンド1回 手牌を引き直せる", flags: { mulligan: 1 } },
     tenome:       { name: "手の目", face: "✋", rarity: 1, price: 5, desc: "手が進むツモ牌を光らせる", flags: { highlight: true } },
@@ -69,7 +69,7 @@
     ryujin:       { name: "龍神", face: "🐲", rarity: 3, price: 10, desc: "13翻以上のアガリで さらに+4翻", unlock: { cost: 80, minStage: 10 } },
     // ---- ★D31 追加解放妖怪（2体）----
     tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 20, minStage: 7 } },
-    tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "役満・数え役満以上のアガリで 点数×1.5", unlock: { cost: 75, minStage: 12 } },
+    tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "アガリの点数 ×1.5", unlock: { cost: 75, minStage: 12 } }, // ★D54 狐火と効果交換(旧:役満時×1.5=狐火の完全下位互換だった)。無条件×1.5は深部解放のご褒美として妥当
     // ---- ★D32 追加解放妖怪（6体: システム/サポート/経済/役満支援）----
     doraneko:     { name: "ドラ猫", face: "🐱", rarity: 3, price: 8, desc: "毎ラウンド、ランダムな牌1種がドラになる（手の中の1枚につき+1翻）", unlock: { cost: 20, minStage: 6 } },
     yakousan:     { name: "夜行さん", face: "👺", rarity: 2, price: 6, desc: "么九牌だけのアガリ(混老頭)で +3翻", unlock: { cost: 15, minStage: 7 } },
@@ -147,7 +147,7 @@
     hamaya:     { name: "破魔矢", face: "🏹", rarity: 3, price: 9, desc: "このボス戦のギミックを無効化", category: "A1対策", usable: "round" },
     juzu:       { name: "数珠", face: "📿", rarity: 3, price: 8, desc: "このボス戦の目標点-20%", category: "敵弱体", usable: "round" },
     kozuchi:    { name: "打ち出の小槌", face: "🔨", rarity: 1, price: 5, desc: "小判+10(即時)", category: "経済", usable: "anytime" },
-    yobimizu:   { name: "呼び水", face: "💧", rarity: 1, price: 4, desc: "ショップを1回無料リロール", category: "ショップ", usable: "shop" },
+    yobimizu:   { name: "呼び水", face: "💧", rarity: 1, price: 4, desc: "ショップを1回無料リロール（★2以上だけが並ぶ）", category: "ショップ", usable: "shop" }, // ★D54 招き鈴(無料リロール補充)の追加で単純リロールは完全下位互換化→「質」側の効果に再設計
   };
   const ITEM_IDS = Object.keys(ITEMS);
 
@@ -307,9 +307,9 @@
     }
     // 縁起物(メタ): アガリの点数+300/Lv
     if (st.engimono) { flat += 300 * st.engimono; note(`縁起物: +${300 * st.engimono}点`); }
-    if (owned.includes("kitsunebi")) { times.push(1.5); note("狐火: 点数×1.5"); }
-    // ★D31 玉藻前: 役満級のアガリをさらに伸ばす（深部の到達深度を延長）
-    if (owned.includes("tamamonomae") && (isYakuman || han >= 13)) { times.push(1.5); note("玉藻前: 点数×1.5"); }
+    // ★D54 効果交換: 狐火=5翻以上(役満含む)で×1.5 / 玉藻前=無条件×1.5（旧は玉藻前が狐火の完全下位互換だった）
+    if (owned.includes("kitsunebi") && (isYakuman || han >= 5)) { times.push(1.5); note("狐火: 点数×1.5"); }
+    if (owned.includes("tamamonomae")) { times.push(1.5); note("玉藻前: 点数×1.5"); }
 
     // ★A1 重石(omoishi): このボス戦の最終翻-1（下限1翻・役満は対象外）。scoreHanFu直前で適用。
     if (gimmick === "omoishi" && !isYakuman) { han = Math.max(1, han - 1); note("【重石】翻-1"); }
@@ -750,7 +750,11 @@
         }
       }
       this.tsumo = sortCodes(drawn);
-      this.koban += yokaiFlag(this.yokai, "kobanOnDraw", "sum"); // 雨降小僧
+// ★D54 雨降小僧: ツモ2回ごとに小判+1（カウンタはラン全体で持ち越し）
+      if (yokaiFlag(this.yokai, "kobanPer2Draws", "sum") > 0) {
+        this._rainTick = (this._rainTick || 0) + 1;
+        if (this._rainTick % 2 === 0) this.koban += yokaiFlag(this.yokai, "kobanPer2Draws", "sum");
+      }
       this.drawsLeft--;
       const out = { ok: true };
       if (this.drawsLeft <= 0 && !this._winReachable()) this._handleDrawsOut(out);
@@ -893,7 +897,8 @@
       }
       return picked;
     }
-    rollShop() {
+    // ★D54: minRarity指定時は妖怪・消耗品ともそのレア度以上だけを抽選（呼び水の「★2以上確定リロール」用）
+    rollShop(minRarity) {
       // ★D48: 上枠(shopYokaiCount)を妖怪と消耗品で「同じ枠から」混在配分する。
       // 各枠は独立に確率ITEM_RATEで消耗品、それ以外は妖怪。表示順もスロット順(order)で混ぜる。
       // 妖怪が主役のため「最低1枠は妖怪」を保証（消耗品はtotal-1まで）。
@@ -902,10 +907,11 @@
       let itemN = 0;
       for (let k = 0; k < total; k++) if (this.rng() < ITEM_RATE) itemN++;
       itemN = Math.min(itemN, total - 1); // 最低1枠は妖怪を残す
-      const ypool = YOKAI_IDS.filter((id) => !this.yokai.includes(id) && this._yokaiAvailable(id));
+      const ypool = YOKAI_IDS.filter((id) => !this.yokai.includes(id) && this._yokaiAvailable(id) && (!minRarity || YOKAI[id].rarity >= minRarity));
       const yokaiOffers = this._weightedYokaiPool(ypool, Math.min(total - itemN, ypool.length));
       itemN = total - yokaiOffers.length; // 妖怪プール枯渇時は消耗品で埋める
-      const itemOffers = this._weightedItemPool(ITEM_IDS.slice(), Math.min(itemN, ITEM_IDS.length));
+      const ipool = ITEM_IDS.filter((id) => !minRarity || ITEMS[id].rarity >= minRarity);
+      const itemOffers = this._weightedItemPool(ipool, Math.min(itemN, ipool.length));
       // スロット順に妖怪/消耗品を混ぜた表示順（決定的rng）
       const order = [];
       const yq = yokaiOffers.slice(), iq = itemOffers.slice();
@@ -1054,9 +1060,9 @@
           break;
         }
         case "yobimizu": {
-          // 呼び水: ショップを1回無料リロール(shop中のみ)。
+          // 呼び水: ショップを1回無料リロールし、★2以上だけが並ぶ(shop中のみ)。★D54で「質」側の効果に再設計。
           if (this.phase !== "shop") return { ok: false, message: "今は使えません" };
-          this.rollShop();
+          this.rollShop(2);
           break;
         }
         default:
