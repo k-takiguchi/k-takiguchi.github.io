@@ -917,7 +917,9 @@
       const hasKanro = this.rng() < 0.25;
       // ★D29: 風呂敷(妖怪枠+1)は30%で入荷。枠が上限(10)なら並ばない。
       const hasFuroshiki = this.rng() < 0.30 && this.yokaiSlots < 10;
-      this.shop = { yokai: yokaiOffers, items: itemOffers.map((id) => ({ id, price: ITEMS[id].price })), order, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki, suzu: true };
+      // ★D53改: 招き鈴(無料引き直し+3)は30%で入荷・1訪問1回（常設は多すぎるためユーザーFBで変更）
+      const hasSuzu = this.rng() < 0.30;
+      this.shop = { yokai: yokaiOffers, items: itemOffers.map((id) => ({ id, price: ITEMS[id].price })), order, tea: true, kanro: hasKanro, kanroPrice: 10, furoshiki: hasFuroshiki, suzu: hasSuzu };
     }
     // 無料リロールの内訳: 提灯お化け=1訪問につき3回(訪問毎リセット・優先消費) → ラン共有ストック(freeRerollsLeft) → 1小判。
     // ★D53: D52の「毎店1回無料」は多すぎたため「ラン中3回(+招き鈴で補充)」へ変更。
@@ -938,13 +940,14 @@
       }
       this.rollShop(); return { ok: true };
     }
-    // ★D53 招き鈴: 無料リロール+3回（ラン中持ち越し・即時反映）。ショップ常設、購入のたびに+2値上がり。
+    // ★D53 招き鈴: 無料リロール+3回（ラン中持ち越し・即時反映）。30%入荷・1訪問1回、購入のたびに+2値上がり。
     buySuzu() {
       if (this.phase !== "shop" || !this.shop.suzu) return { ok: false };
       if (this.koban < this.suzuPrice) return { ok: false, message: "小判が足りません" };
       this.koban -= this.suzuPrice;
       this.suzuPrice += 2;
       this.freeRerollsLeft = (this.freeRerollsLeft || 0) + 3;
+      this.shop.suzu = false; // 1訪問1回
       return { ok: true };
     }
     buyYokai(id) {
