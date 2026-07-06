@@ -75,7 +75,7 @@
            <span class="settings-item-title">🛡 確認画面</span>
            <button class="btn small ${meta.confirmActions ? "indigo" : "gold"}" data-toggleconfirm="1">${meta.confirmActions ? "ON" : "OFF"}</button>
          </div>
-         <div class="settings-item-note">手牌引き直し・鳴き・カン・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
+         <div class="settings-item-note">手牌引き直し・鳴き・カン・アガリ時のツモの確認。</div>
        </div>`;
     const giveupSection = !inRun ? "" : (
       settingsGiveupConfirm
