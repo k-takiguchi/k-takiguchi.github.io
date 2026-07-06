@@ -216,6 +216,18 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 
 .message { text-align: center; min-height: 18px; font-size: 12px; color: var(--indigo-dark); font-weight: 700; margin-top: 6px; }
 
+/* ---- ★D76 物語レイヤー: 図鑑の一言解説(A) ---- */
+.lore { font-size: 10.5px; color: #9a8f78; font-style: italic; line-height: 1.5; margin-top: 2px; }
+
+/* ---- ★D76 物語レイヤー: 案内役「お茶子」(B) ---- */
+.otyako { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: #6a6555; background: #fdf6e8; border: 1px solid #ecdcb8; border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; }
+.otyako-face { font-size: 16px; }
+.otyako b { color: #a1701f; white-space: nowrap; }
+.otyako-line { flex: 1; }
+
+/* ---- ★D76 物語レイヤー: 節目のフレーバー(C・決着カード) ---- */
+.flavor-line { font-style: italic; color: #6a6555; margin: 4px 0; }
+
 /* ---- ショップ ---- */
 .shop { background: var(--card); border-radius: 14px; padding: 12px; box-shadow: 0 3px 10px var(--shadow); }
 .shop h2 { text-align: center; margin: 2px 0 10px; color: var(--indigo-dark); font-size: 16px; }

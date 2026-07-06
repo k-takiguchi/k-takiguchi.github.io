@@ -19,6 +19,38 @@
     return m;
   }
 
+  // ---- ★D76 物語レイヤー: C. 節目のフレーバー（design/narrative-drafts.md §C を一字一句転記） ----
+  const FLAVOR = {
+    startCampaign: "日が沈む。今宵も百鬼が練り歩く——夜明けを取り戻しに行こう。",
+    startEndless: "明けない夜の底へ。どこまで潜れるか、試そう。",
+    bossOboroguruma: "行く手が霞んでいく。朧車のお出ましだ。",
+    bossTsuchigumo: "見えない糸が絡みつく。土蜘蛛が巣を張っている。",
+    bossNurarihyon: "妖怪の総大将、ぬらりひょん。この「明けない夜」の主だ。",
+    bossGeneric: "ひときわ濃い闇が、こちらへ近づいてくる——。",
+    won: "東の空が白む。百鬼夜行は打ち破られ、街に朝が戻った。……また夜が来るまでは。",
+    lost: "ツモが尽き、夜に呑まれた。——茶屋で力を蓄えて、また挑もう。",
+  };
+  // ボス戦開始時のフレーバーを場面(ラウンド名)から決定。朧車/土蜘蛛/ぬらりひょんは専用文、それ以外(無限夜行のボス)は汎用文。
+  function bossFlavorFor(r) {
+    if (r.name.includes("朧車")) return FLAVOR.bossOboroguruma;
+    if (r.name.includes("土蜘蛛")) return FLAVOR.bossTsuchigumo;
+    if (r.name.includes("ぬらりひょん")) return FLAVOR.bossNurarihyon;
+    return FLAVOR.bossGeneric;
+  }
+
+  // ---- ★D76 物語レイヤー: B. 案内役「お茶子」台詞（design/narrative-drafts.md §B を一字一句転記） ----
+  const OTYA = {
+    titleNormal: "おかえりなさい。今夜も出るのかい？ 支度はうちでしておいき。",
+    titleFirst: "あんたが噂の打ち手かい。まずは一晩、行っておいで。",
+    titleWon: "朝日がまぶしいねえ。……あんた、いい打ち手になったよ。",
+    titleLost: "おかえり。負けた夜ほど、お茶がうまいのさ。",
+    shopNormal: "いらっしゃい。今夜は掘り出し物があるよ。",
+    shopShort: "見るだけならタダだよ。",
+    clearNormal: "よくやったね。次も気をつけてお行き。",
+    clearBoss: "大物食いだね！ ご褒美をお出しよ。",
+  };
+  function otyaLine(text) { return `<div class="otyako"><span class="otyako-face">🦝</span><b>お茶子</b> <span class="otyako-line">${text}</span></div>`; }
+
   let meta = normalizeMeta(loadMeta());
   let screen = "title";
   let game = null;
@@ -30,6 +62,7 @@
   let pendingSwapId = null; // 妖怪枠が埋まっている時に購入しようとした妖怪id（誰を手放すか選択中）
   let awardedMedals = 0; // このラン中に既にmeta.medalsへ加算した累計（継続時の二重付与防止）
   let lastEarned = 0;
+  let lastRunResult = null; // ★D76 "won"|"lost"|null。直前の挑戦結果（お茶子Bのタイトル表示切替用）。セッション内のみ保持しセーブしない。
   // ★D73: 無限夜行解禁済みなら既定を無限夜行に（未解禁時は従来どおり百鬼夜行）。手動切替は可能。
   let selectedMode = meta.endlessUnlocked ? "endless" : "campaign"; // タイトルで選ぶ次ランのモード
   let helpOpen = false; // ヘルプ（❓）表示中
@@ -126,6 +159,7 @@
     const total = game.medalsEarned();
     const delta = total - awardedMedals;
     if (delta > 0) { meta.medals += delta; awardedMedals = total; lastEarned = delta; }
+    lastRunResult = "lost"; // ★D76 挑戦をあきらめた場合も「敗北後」扱い（お茶子Bのタイトル表示切替。独自判断）
     saveMeta();
     settingsOpen = false; settingsGiveupConfirm = false; settingsResetStep = 0;
     renderSettings();
@@ -370,10 +404,17 @@
         ? `<span class="meta-max">解放済</span>`
         : `<button class="btn small gold" ${afford ? "" : "disabled"} data-unlockyokai="${id}">💠${y.unlock.cost}</button>`;
       const evo = y.evolvesFrom ? `<div class="d evo-note">⤴ ${MJ.YOKAI[y.evolvesFrom].name}を持っていると市に出現（変化・上書き）</div>` : "";
-      return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div>${evo}</div>${btn}</div>`;
+      // ★D76 図鑑の一言解説(A): 解放済みの妖怪にのみ、descの下に表示（未解放=❓には出さない）
+      const loreHtml = (owned && y.lore) ? `<div class="lore">${y.lore}</div>` : "";
+      return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div>${loreHtml}${evo}</div>${btn}</div>`;
     }).join("");
+    // ★D76 案内役「お茶子」(B): 茶屋タブ上部＝直前の挑戦結果で切替（制覇後／敗北後／通常。初回=勾玉0かつ強化なしなら初回文）
+    const firstTime = meta.medals === 0 && Object.keys(meta.upgrades || {}).length === 0;
+    const chayaFlavorText = lastRunResult === "won" ? OTYA.titleWon
+      : lastRunResult === "lost" ? OTYA.titleLost
+      : (firstTime ? OTYA.titleFirst : OTYA.titleNormal);
     // ★D41 タブ化: 茶屋/図鑑を切り替えて表示（タイトルが縦に長くなりテストプレイの妨げになっていた）
-    const chaya = `<div class="shop-items">${rows}</div>
+    const chaya = `${otyaLine(chayaFlavorText)}<div class="shop-items">${rows}</div>
       <div class="meta-note" style="margin:10px 0 6px">🔮 奥義 — 勾玉を貯め込んで挑む大強化</div>
       <div class="shop-items">${lateRows}</div>`;
     const zukan = `<div class="meta-note" style="margin:0 0 8px">解放した妖怪は、記載ステージ以降の「妖怪の市」に並ぶようになります</div>
@@ -459,7 +500,9 @@
     bar.innerHTML += `<span class="slots">枠 ${game.yokai.length}/${game.yokaiSlots}</span>`;
     if (yokaiPanelId) {
       const y = MJ.YOKAI[yokaiPanelId];
-      bar.innerHTML += `<div class="yokai-panel"><div class="yokai-detail"><span class="face">${y.face}</span><b>${y.name}</b> <span class="rar-inline">${"★".repeat(y.rarity)}</span><span class="ydesc">${y.desc}</span></div></div>`;
+      // ★D76 図鑑の一言解説(A): 装備バーの妖怪詳細パネル(タップ表示)にも1行表示
+      const loreHtml = y.lore ? `<div class="lore">${y.lore}</div>` : "";
+      bar.innerHTML += `<div class="yokai-panel"><div class="yokai-detail"><span class="face">${y.face}</span><b>${y.name}</b> <span class="rar-inline">${"★".repeat(y.rarity)}</span><span class="ydesc">${y.desc}</span></div>${loreHtml}</div>`;
     }
   }
 
@@ -753,8 +796,15 @@
     // ★D53: 無料リロール=ラン中3回(共有ストック)＋提灯お化けの訪問毎3回。使い切ったら1小判
     const freeLeft = game.freeRerollAvailable();
     const rerollLabel = freeLeft > 0 ? `(無料 残${freeLeft})` : "(1小判)";
+    // ★D76 案内役「お茶子」(B): 市のヘッダー下＝通常／小判が最安品より少ない時は不足文
+    const offerPrices = shopOrder
+      .filter((e) => e.kind === "yokai" ? shop.yokai.includes(e.id) : (shop.items || []).some((x) => x.id === e.id))
+      .map((e) => e.kind === "yokai" ? game.yokaiPrice(e.id) : (shop.items || []).find((x) => x.id === e.id).price);
+    const minOfferPrice = offerPrices.length ? Math.min(...offerPrices) : Infinity;
+    const otyaShopText = game.koban < minOfferPrice ? OTYA.shopShort : OTYA.shopNormal;
     $("shop").innerHTML =
       `<h2>🏮 妖怪の市 🏮</h2>
+       ${otyaLine(otyaShopText)}
        <div class="resources"><span class="chip koban">小判 ${game.koban}</span></div>
        ${slotsFull ? '<div class="swap-note">妖怪枠がいっぱいです。妖怪を選ぶと入れ替え相手を選べます</div>' : ""}
        <div class="shop-items">${yokaiHtml}${drawsHtml}</div>
@@ -806,7 +856,9 @@
         }).join("");
         dropHtml = `<div class="drop-choice"><div class="drop-title">🎁 ボスドロップ：どちらか1つを選べます</div><div class="shop-items">${cards}</div><button class="btn small indigo" data-skipdrop="1">受け取らない</button></div>`;
       }
-      ov.innerHTML = `<div class="card clear-card"><div class="emoji">🎊</div><h1>${ci.enemyName} を撃破！</h1>${bossFlair}<div class="reward-big">報酬 🪙 +${ci.reward} 小判 ${interestLine}</div><p class="next-note">次は ${nextLabel}</p>${nextBossHtml}${dropHtml}<button class="btn play gold" data-toshop="1">▶ 妖怪の市へ</button></div>`;
+      // ★D76 案内役「お茶子」(B): クリア画面＝通常／ボス撃破
+      const otyaClearText = ci.boss ? OTYA.clearBoss : OTYA.clearNormal;
+      ov.innerHTML = `<div class="card clear-card"><div class="emoji">🎊</div><h1>${ci.enemyName} を撃破！</h1>${otyaLine(otyaClearText)}${bossFlair}<div class="reward-big">報酬 🪙 +${ci.reward} 小判 ${interestLine}</div><p class="next-note">次は ${nextLabel}</p>${nextBossHtml}${dropHtml}<button class="btn play gold" data-toshop="1">▶ 妖怪の市へ</button></div>`;
       return;
     }
     const ended = game.phase === "won" || game.phase === "lost";
@@ -815,11 +867,13 @@
     if (game.phase === "won") {
       ov.className = "overlay win";
       // ★D53: 「このまま無限夜行へ続ける」は廃止（無限夜行はボス構成が異なる別モードのため、タイトルから新規ランで開始する）
-      ov.innerHTML = `<div class="card"><div class="emoji">🎉🦊🏮</div><h1>百鬼夜行 制覇！</h1><p>全9戦を打ち切りました。<br>仲間の妖怪: ${game.yokai.length}体 ／ 総アガリ ${game.totalAgari}回</p>${medalLine}<p class="unlock-note">♾️ 無限夜行モードが解禁されました！<br>タイトルのモード選択から挑戦できます</p><button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
+      // ★D76 節目のフレーバー(C): 制覇（勝利）を記録の上に1行
+      ov.innerHTML = `<div class="card"><div class="emoji">🎉🦊🏮</div><h1>百鬼夜行 制覇！</h1><p class="flavor-line">${FLAVOR.won}</p><p>全9戦を打ち切りました。<br>仲間の妖怪: ${game.yokai.length}体 ／ 総アガリ ${game.totalAgari}回</p>${medalLine}<p class="unlock-note">♾️ 無限夜行モードが解禁されました！<br>タイトルのモード選択から挑戦できます</p><button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
     } else {
       ov.className = "overlay lose";
       const label = game.mode === "endless" ? `♾️ 無限夜行 ${game.roundIndex + 1}戦目「${game.currentRound().name}」` : `ステージ ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}「${game.currentRound().name}」`;
-      ov.innerHTML = `<div class="card"><div class="emoji">👻💦</div><h1>力尽きた…</h1><p>${label}でツモ切れ。<br>クリア数: ${game.roundsCleared}戦</p>${medalLine}<button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
+      // ★D76 節目のフレーバー(C): 敗北を記録の上に1行
+      ov.innerHTML = `<div class="card"><div class="emoji">👻💦</div><h1>力尽きた…</h1><p class="flavor-line">${FLAVOR.lost}</p><p>${label}でツモ切れ。<br>クリア数: ${game.roundsCleared}戦</p>${medalLine}<button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
     }
   }
 
@@ -831,6 +885,7 @@
       const delta = total - awardedMedals;
       if (delta > 0) { meta.medals += delta; awardedMedals = total; lastEarned = delta; }
       if (game.phase === "won" && !meta.endlessUnlocked) meta.endlessUnlocked = true;
+      lastRunResult = game.phase; // ★D76 お茶子(B)のタイトル表示切替用（セッション内のみ保持）
       saveMeta();
     }
     renderTopBar(); renderYokai(); renderItems();
@@ -845,7 +900,10 @@
     game = new MJ.Game({ meta, mode: mode || selectedMode });
     sel = null; callSelect = null; awardedMedals = 0; lastEarned = 0;
     itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null;
-    screen = "run"; setMessage(""); render();
+    screen = "run";
+    // ★D76 節目のフレーバー(C): 挑戦開始＝ステージ1(無限は1戦目)開始時のmessage
+    setMessage(game.mode === "endless" ? FLAVOR.startEndless : FLAVOR.startCampaign);
+    render();
   }
   // ★D73: タイトルへ戻るたび、解禁済みなら既定モードを無限夜行に戻す（手動切替は毎回可能なままにするための既定リセット）。
   function toTitle() { screen = "title"; sel = null; callSelect = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; selectedMode = meta.endlessUnlocked ? "endless" : "campaign"; render(); }
@@ -967,7 +1025,13 @@
     if (t.dataset.furoshiki) { const r = game.buyFuroshiki(); setMessage(r.ok ? "🎒 妖怪枠が1つ増えた！" : (r.message || "")); render(); return; }
     if (t.dataset.suzu) { const r = game.buySuzu(); setMessage(r.ok ? "🔔 無料引き直しが3回増えた！" : (r.message || "")); render(); return; }
     if (t.dataset.reroll) { pendingSwapId = null; pendingSwapItemId = null; const r = game.reroll(); setMessage(r.ok ? "" : (r.message || "")); render(); return; }
-    if (t.dataset.next) { game.leaveShop(); sel = null; callSelect = null; pendingSwapId = null; pendingSwapItemId = null; setMessage(""); render(); return; }
+    if (t.dataset.next) {
+      game.leaveShop(); sel = null; callSelect = null; pendingSwapId = null; pendingSwapItemId = null;
+      // ★D76 節目のフレーバー(C): ボス登場＝ボス戦のステージ開始時message（それ以外は従来どおり空）
+      const r = game.currentRound();
+      setMessage(r.boss ? bossFlavorFor(r) : "");
+      render(); return;
+    }
   });
 
   function onTile(zone, i) {
