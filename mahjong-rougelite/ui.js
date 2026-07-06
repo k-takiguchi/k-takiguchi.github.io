@@ -30,7 +30,8 @@
   let pendingSwapId = null; // 妖怪枠が埋まっている時に購入しようとした妖怪id（誰を手放すか選択中）
   let awardedMedals = 0; // このラン中に既にmeta.medalsへ加算した累計（継続時の二重付与防止）
   let lastEarned = 0;
-  let selectedMode = "campaign"; // タイトルで選ぶ次ランのモード
+  // ★D73: 無限夜行解禁済みなら既定を無限夜行に（未解禁時は従来どおり百鬼夜行）。手動切替は可能。
+  let selectedMode = meta.endlessUnlocked ? "endless" : "campaign"; // タイトルで選ぶ次ランのモード
   let helpOpen = false; // ヘルプ（❓）表示中
   let helpTab = "basics"; // ヘルプの表示タブ: "basics"(麻雀の基本)/"game"(本作の遊び方)/"yaku"(役一覧)/"fb"(フィードバック)
   let helpAcc = new Set(); // ★D66 ヘルプのアコーディオン開閉キー集合（開いているキーを保持。ヘルプを閉じるとリセット）
@@ -80,7 +81,7 @@
     const giveupSection = !inRun ? "" : (
       settingsGiveupConfirm
         ? `<div class="settings-item settings-danger">
-             <div class="settings-item-note">本当にあきらめますか？ 獲得メダルを精算してタイトルへ戻ります</div>
+             <div class="settings-item-note">本当にあきらめますか？ 獲得勾玉を精算してタイトルへ戻ります</div>
              <div class="settings-actions">
                <button class="btn small gold" data-giveupconfirm="1">あきらめる</button>
                <button class="btn small indigo" data-giveupcancel="1">やめる</button>
@@ -107,7 +108,7 @@
                <span class="settings-item-title">🗑 データの初期化</span>
                <button class="btn small indigo" data-resetstart="1">初期化</button>
              </div>
-             <div class="settings-item-note">メダル・茶屋の強化・図鑑の解放をすべて消して最初の状態に戻します（テスト用）</div>
+             <div class="settings-item-note">勾玉・茶屋の強化・図鑑の解放をすべて消して最初の状態に戻します（テスト用）</div>
            </div>`
     );
     return `<div class="help-panel settings-panel">
@@ -151,7 +152,7 @@
     { name: "一盃口", han: "1翻", cond: "同一の順子が1組あると成立します。", naki: "鳴くと成立しません（門前限定）" },
     { name: "二盃口", han: "3翻", cond: "同一の順子が2組そろうと成立します（一盃口とは排他で、上位互換として置き換わります）。", naki: "鳴くと成立しません（門前限定）" },
     { name: "役牌(三元)", han: "1翻/組", cond: "白・發・中の刻子で成立します（各1翻）。", naki: "鳴いても成立します" },
-    { name: "場風", han: "2翻", cond: "その道中の場風の刻子で成立します。2戦ごとに東→南→西→北とローテーションし、ソロでは自風＝場風のダブ扱いとして2翻になります。場風以外の風（客風）の刻子には役が付きません。", naki: "鳴いても成立します" },
+    { name: "場風", han: "2翻", cond: "そのステージの場風の刻子で成立します。2戦ごとに東→南→西→北とローテーションし、ソロでは自風＝場風のダブ扱いとして2翻になります。場風以外の風（客風）の刻子には役が付きません。", naki: "鳴いても成立します" },
     { name: "三色同順", han: "2翻", cond: "同じ数字の順子を3色（萬・筒・索）そろえると成立します。", naki: "鳴いても成立します（喰い下がりで2翻→1翻になります）" },
     { name: "三色同刻", han: "2翻", cond: "同じ数字の刻子を3色そろえると成立します。", naki: "鳴いても成立します" },
     { name: "一気通貫", han: "2翻", cond: "同じ種類で123-456-789をそろえると成立します。", naki: "鳴いても成立します（喰い下がりで2翻→1翻になります）" },
@@ -213,6 +214,26 @@
         <li><b>翻（ハン）</b>は役の強さを表し、多いほど高得点になります。<b>符（フ）</b>は手の細かい要素に応じた点数です。翻と符から最終的な得点が決まります。</li>
         <li>得点は<b>満貫8000点で一段落する階段状</b>になっていて、そこからさらに翻が伸びると跳満・倍満…と上がっていきます。数字の詳細は「📜役一覧」タブをご覧ください。</li>
       </ul>`) +
+      accItem("b-scoretable", "📊 点数計算表", `<p class="help-lead">代表的な翻・符の組み合わせの点数早見表です（本作の点数計算を実測した値です）。</p>
+        <div class="score-table-wrap"><table class="score-table">
+          <thead><tr><th>翻＼符</th><th>20符</th><th>25符</th><th>30符</th><th>40符</th><th>50符</th><th>70符</th></tr></thead>
+          <tbody>
+            <tr><th>1翻</th><td>700</td><td>800</td><td>1000</td><td>1300</td><td>1600</td><td>2300</td></tr>
+            <tr><th>2翻</th><td>1300</td><td>1600</td><td>2000</td><td>2600</td><td>3200</td><td>4500</td></tr>
+            <tr><th>3翻</th><td>2600</td><td>3200</td><td>3900</td><td>5200</td><td>6400</td><td>8000<span class="limit-note">満貫</span></td></tr>
+            <tr><th>4翻</th><td>5200</td><td>6400</td><td>7700</td><td>8000<span class="limit-note">満貫</span></td><td>8000<span class="limit-note">満貫</span></td><td>8000<span class="limit-note">満貫</span></td></tr>
+          </tbody>
+        </table></div>
+        <div class="score-table-wrap"><table class="score-table score-table-limit">
+          <tbody>
+            <tr><th>5翻</th><td>満貫</td><td>8000</td></tr>
+            <tr><th>6〜7翻</th><td>跳満</td><td>12000</td></tr>
+            <tr><th>8〜10翻</th><td>倍満</td><td>16000</td></tr>
+            <tr><th>11〜12翻</th><td>三倍満</td><td>24000</td></tr>
+            <tr><th>13翻以上</th><td>役満</td><td>32000</td></tr>
+          </tbody>
+        </table></div>
+        <p class="help-lead">さらに翻が伸びる場合の「数え役満」の階段は「📜役一覧」タブをご覧ください。</p>`) +
       accItem("b-noyaku", "❗ 役が無いとアガれない", `<ul>
         <li>普通の麻雀では「役」が無い手はアガれません。ただし本作は<b>門前清自摸和（門前ツモ）という役が常に1翻付く</b>ので、<b>鳴かなければ必ずアガれます</b>。鳴くとこの役が消えるので要注意です（詳しくは「🏮本作の遊び方」タブをご覧ください）。</li>
       </ul>`);
@@ -220,14 +241,14 @@
 
   function helpGameHtml() {
     return accItem("g-purpose", "🎯 目的", `<ul>
-        <li>ソロ麻雀ローグライトです。<b>アガリの点数で敵妖怪のHPを削ります</b>。敵のHPを0まで削れば道中クリアです。</li>
-        <li>「百鬼夜行」は全8戦（3戦ごとにボス）を制覇すれば勝利です。初回制覇で「無限夜行」（スコアアタック）が解禁されます。</li>
-        <li>点数計算は<b>ほぼ標準ルール</b>です（翻・符、満貫8000で頭打ちの階段）。全てツモ和了扱いで、ロンはありません。</li>
+        <li><b>アガリの点数で敵妖怪のHPを削ります</b>。敵のHPを0まで削ればステージクリアです。</li>
+        <li>「百鬼夜行」は全9戦（3戦ごとにボス）を制覇すれば勝利です。百鬼夜行を制覇することで「無限夜行」（スコアアタック）が解禁されます。</li>
+        <li>点数計算は<b>ほぼ標準ルール</b>です。全てツモ和了扱いで、ロンはありません。詳しくは「🀄麻雀の基本」タブの点数計算表をご覧ください。</li>
       </ul>`) +
       accItem("g-flow", "🀄 手牌の進め方（本作の独自ループ）", `<ul>
-        <li><b>手牌13枚＋ツモプール5枚</b>が常に見えています。タップで<b>手牌⇔プールを自由に交換</b>できます（何回でも無料）。</li>
+        <li><b>手牌13枚＋ツモプール5枚</b>が常に見えています。タップで<b>手牌⇔プールを自由に交換</b>できます。</li>
         <li>プールの1枚で手が完成していれば「🎉 アガリ」ボタンが光ります。</li>
-        <li>良い牌が無ければ「🀄 ツモを引く」でプール5枚を総入れ替えできます。<b>これが消耗するリソースです</b>。</li>
+        <li>良い牌が無ければ「🀄 ツモを引く」でプール5枚を総入れ替えできます。ただし<b>ツモを引ける回数には限りがあります</b>（詳しくは次の項目へ）。</li>
         <li>テンパイすると待ち牌・山の残り枚数・アガった場合の点数が自動表示されます。</li>
       </ul>`) +
       accItem("g-hp", "💧 ツモ回数＝HP（最重要）", `<ul>
@@ -240,35 +261,36 @@
         <li>手牌2枚＋プール1枚で刻子/順子が完成するとき、プール下の「ポン」「チー」ボタンが押せるようになります（候補が無い種類はグレーアウトのままです）。ボタンを押すと候補が表示され、タップして鳴きを実行します。</li>
         <li>鳴くと面子を晒し、1枚捨てると<b>プール5枚が無料で新しくなります（ツモ回数を消費しません）</b>。</li>
         <li>代わりに門前が崩れます。門前ツモ・平和・七対子・一盃口/二盃口・四暗刻・九蓮宝燈などが消え、喰い下がりも適用されます。</li>
-        <li><b>役が無いとアガれない</b>ので、鳴くなら役の当てを考えましょう（喰いタン・対々和・混一色など）。待ち表示に「役なし」と出たら注意してください。</li>
+        <li><b>役が無いとアガれない</b>ので、鳴く場合はアガれるように役を作りましょう（喰いタン・対々和・混一色など）。待ち表示に「役なし」と出たら注意してください。</li>
         <li>ロンが無いので、対々和は鳴き経由でのみ成立します（門前で4刻子がそろうと四暗刻に昇格します）。</li>
       </ul>`) +
       accItem("g-kan", "🎴 カン（暗槓）", `<ul>
         <li>同一牌4枚（手牌4枚 or 手牌3枚+プール1枚）がそろうと、「カン」ボタンから宣言できます（候補が無いときはグレーアウトです）。</li>
-        <li>宣言すると<b>カンドラが1枚公開</b>（誰でも複数累積）され、槓子は固定（手替え不可）、プールが無料で新しくなります（ツモ回数を消費しません）。</li>
-        <li>直後にアガれば<b>嶺上開花+1翻</b>が付きます。槓符（暗刻符の4倍＝中張牌16符／么九牌32符）も付きます。</li>
+        <li>宣言すると<b>カンドラが1枚公開</b>され、プールが無料で新しくなります（ツモ回数を消費しません）。</li>
+        <li>直後にアガれば<b>嶺上開花</b>が付きます。</li>
       </ul>`) +
       accItem("g-dora", "🎴 ドラ", `<ul>
-        <li>カンをするたびに<b>カンドラが1枚公開</b>され、そのドラ1枚につき+1翻になります（誰でも複数累積します）。</li>
-        <li>妖怪「ドラ猫」を仲間にすると、ラウンドごとの通常ドラも表示されるようになります。</li>
+        <li>カンをするたびに<b>カンドラが1枚公開</b>され、そのドラ1枚につき+1翻になります（複数累積します）。</li>
+        <li>妖怪「ドラ猫」を仲間にすると、カンをしなくてもドラが1つ表示されるようになります。</li>
       </ul>`) +
       accItem("g-kaze", "🌪 場風ローテーション", `<ul>
         <li>2戦ごとに東場→南場→西場→北場と巡ります（画面上部にバッジで表示されます）。</li>
-        <li>役牌は<b>三元牌と「場風」のみ</b>です（本家準拠）。<b>場風の刻子は2翻</b>になります（ソロなので自風＝場風のダブ扱いです）。場風以外の風（客風）は役なしです。</li>
+        <li>役牌は<b>三元牌と「場風」のみ</b>です。<b>場風の刻子は2翻</b>になります。場風以外の風（客風）は役なしです。</li>
       </ul>`) +
-      accItem("g-yokai", "👻 妖怪（ジョーカー）とショップ", `<ul>
-        <li>道中クリアごとに「妖怪の市」が開きます。<b>小判</b>で妖怪（翻/符/点数を強化・サポート効果）や道具、常設アイテムを買えます。</li>
-        <li>妖怪枠は5です（拡張可）。枠が埋まっていても<b>入れ替え購入</b>できます。</li>
+      accItem("g-yokai", "👻 妖怪とショップ", `<ul>
+        <li>ステージをクリアすると、報酬として<b>小判</b>がもらえます。</li>
+        <li>ステージクリアごとに「妖怪の市」が開き、小判で妖怪や道具などを買うことができます。</li>
+        <li>妖怪の装備枠は5です。枠が埋まっていても<b>入れ替え購入</b>できます。</li>
         <li>一部の妖怪には<b>進化（⤴LvUP）</b>があり、進化元を持っていると市に上位版が出現します。購入すると進化元を上書きして強化されます。</li>
-        <li>市の品ぞろえは<b>リロール（引き直し）</b>できます。<b>ラン中3回まで無料</b>で、それ以降は1小判かかります。妖怪「🔔招き鈴」を買うと無料回数が+3補充されます（6小判〜・買うたび値上がり）。</li>
+        <li>市の品ぞろえは<b>リロール（引き直し）</b>できます。<b>ラン中3回まで無料</b>で、それ以降は1小判かかります。</li>
       </ul>`) +
-      accItem("g-medal", "🏅 メダルと妖怪茶屋・図鑑", `<ul>
-        <li>ラン終了時（負けても）<b>メダル</b>を獲得します → タイトルの「🏯妖怪茶屋」タブで恒久強化が買えます。<b>負けて強くなる設計</b>なので、気軽に挑戦して大丈夫です。</li>
-        <li>タイトルの「📖妖怪図鑑」タブでは、メダルを払って妖怪を解放すると、その妖怪が規定ステージ以降のショップに出現するようになります。</li>
+      accItem("g-magatama", "💠 勾玉と妖怪茶屋・図鑑", `<ul>
+        <li>ラン終了時（負けても）<b>勾玉</b>を獲得します → タイトルの「🏯妖怪茶屋」タブで恒久強化が買えます。何度も挑戦して強くしていきましょう。</li>
+        <li>タイトルの「📖妖怪図鑑」タブでは、勾玉を払って妖怪を解放すると、その妖怪がショップに出現するようになります。</li>
       </ul>`) +
       accItem("g-mode", "🎮 モード", `<ul>
-        <li><b>百鬼夜行</b>（既定）は、全8戦（3戦ごとにボス）を制覇すると勝利になります。</li>
-        <li><b>無限夜行</b>は、百鬼夜行を一度制覇すると解禁されます。8戦目以降も無限にステージが続くスコアアタックで、力尽きるまで挑戦し続けます。</li>
+        <li><b>百鬼夜行</b>は、全9戦（3戦ごとにボス）を制覇すると勝利になります。</li>
+        <li><b>無限夜行</b>は、百鬼夜行を一度制覇すると解禁され、以後はタイトルで最初に選ばれるようになります。9戦目以降も無限にステージが続くスコアアタックで、力尽きるまで挑戦し続けます。</li>
       </ul>`);
   }
 
@@ -283,14 +305,14 @@
   function helpYakuHtml() {
     const rowsHtml = YAKU_TABLE.map((y, i) => yakuRowHtml(y, `yaku-${i}`, y.han)).join("");
     const yakumanRowsHtml = YAKUMAN_TABLE.map((y, i) => yakuRowHtml(y, `yakuman-${i}`, "役満(13翻)", " yakuman")).join("");
-    const noteBody = `<p><b>喰い下がり</b>（鳴くと下がる翻）: 混一色3→2／清一色6→5／チャンタ2→1／ジュンチャン3→2／一気通貫2→1／三色同順2→1（喰いタンは1翻のまま変わりません）。</p>
-      <p>役満が複合した場合は<b>ダブル役満・トリプル役満</b>として32000×該当数を単純加算します（例: 字一色+四暗刻＝ダブル役満64000点）。翻数が非常に高い手には「数え役満」の階段があります: 13〜15翻＝32000（数え役満）／16〜17翻＝40000（5倍満）／18〜19翻＝48000（6倍満）／以降2翻ごとに+8000。</p>`;
+    const kuisagariBody = `<p><b>喰い下がり</b>（鳴くと下がる翻）: 混一色3→2／清一色6→5／チャンタ2→1／ジュンチャン3→2／一気通貫2→1／三色同順2→1（喰いタンは1翻のまま変わりません）。</p>`;
+    const yakumanNoteBody = `<p>役満が複合した場合は<b>ダブル役満・トリプル役満</b>として32000×該当数を単純加算します（例: 字一色+四暗刻＝ダブル役満64000点）。翻数が非常に高い手には「数え役満」の階段があります: 13〜15翻＝32000（数え役満）／16〜17翻＝40000（5倍満）／18〜19翻＝48000（6倍満）／以降2翻ごとに+8000。</p>`;
     return `<p class="help-lead">実装されている全役の早見表です（<code>core-loop-v0.2-agari.md</code> §3が正）。全てツモ和了・ロン無し前提の翻数です。</p>
       <h3>📜 通常役</h3>
       <div class="yaku-list">${rowsHtml}</div>
       <h3>👑 役満</h3>
       <div class="yaku-list">${yakumanRowsHtml}</div>
-      <div class="yaku-list">${accItem("yaku-note", "📝 補足: 喰い下がりと役満の複合", noteBody)}</div>`;
+      <div class="yaku-list">${accItem("yaku-note-kuisagari", "📝 補足: 喰い下がり", kuisagariBody)}${accItem("yaku-note-yakuman", "📝 補足: 役満の複合と数え役満", yakumanNoteBody)}</div>`;
   }
 
   function helpFeedbackHtml() {
@@ -331,7 +353,7 @@
       const maxed = cost === null;
       const afford = !maxed && meta.medals >= cost;
       const pips = "●".repeat(lv) + "○".repeat(u.max - lv);
-      const btn = maxed ? `<span class="meta-max">MAX</span>` : `<button class="btn small gold" ${afford ? "" : "disabled"} data-metabuy="${id}">🏅${cost}</button>`;
+      const btn = maxed ? `<span class="meta-max">MAX</span>` : `<button class="btn small gold" ${afford ? "" : "disabled"} data-metabuy="${id}">💠${cost}</button>`;
       return `<div class="offer"><span class="face">${u.face}</span><div class="info"><div class="n">${u.name} <span class="pips">${pips}</span></div><div class="d">${u.desc}</div></div>${btn}</div>`;
     };
     // ★D50: late(枠開放系)は高額のエンドコンテンツ扱いとして「奥義」に分けて表示
@@ -346,13 +368,13 @@
       const afford = meta.medals >= y.unlock.cost;
       const btn = owned
         ? `<span class="meta-max">解放済</span>`
-        : `<button class="btn small gold" ${afford ? "" : "disabled"} data-unlockyokai="${id}">🏅${y.unlock.cost}</button>`;
+        : `<button class="btn small gold" ${afford ? "" : "disabled"} data-unlockyokai="${id}">💠${y.unlock.cost}</button>`;
       const evo = y.evolvesFrom ? `<div class="d evo-note">⤴ ${MJ.YOKAI[y.evolvesFrom].name}を持っていると市に出現（進化・上書き）</div>` : "";
       return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div>${evo}</div>${btn}</div>`;
     }).join("");
     // ★D41 タブ化: 茶屋/図鑑を切り替えて表示（タイトルが縦に長くなりテストプレイの妨げになっていた）
     const chaya = `<div class="shop-items">${rows}</div>
-      <div class="meta-note" style="margin:10px 0 6px">🔮 奥義 — メダルを貯め込んで挑む大強化</div>
+      <div class="meta-note" style="margin:10px 0 6px">🔮 奥義 — 勾玉を貯め込んで挑む大強化</div>
       <div class="shop-items">${lateRows}</div>`;
     const zukan = `<div class="meta-note" style="margin:0 0 8px">解放した妖怪は、記載ステージ以降の「妖怪の市」に並ぶようになります</div>
       <div class="shop-items">${zukanRows}</div>`;
@@ -363,13 +385,13 @@
       <div class="tab-panel">${titleTab === "zukan" ? zukan : chaya}</div>`;
     const modeHtml = meta.endlessUnlocked
       ? `<div class="mode-select">
-           <button class="mode-btn ${selectedMode === "campaign" ? "active" : ""}" data-mode="campaign">📖 百鬼夜行<span class="mode-sub">全8戦・制覇を目指す</span></button>
+           <button class="mode-btn ${selectedMode === "campaign" ? "active" : ""}" data-mode="campaign">📖 百鬼夜行<span class="mode-sub">全9戦・制覇を目指す</span></button>
            <button class="mode-btn ${selectedMode === "endless" ? "active" : ""}" data-mode="endless">♾️ 無限夜行<span class="mode-sub">力尽きるまで・ハイスコア</span></button>
          </div>`
       : `<div class="mode-locked">♾️ 無限夜行は「百鬼夜行」を制覇すると解禁されます</div>`;
     $("title").innerHTML =
       `<div class="title-hero"><div class="game-logo">ゆるかわ百鬼夜行</div><div class="game-sub">〜麻雀ローグライト proto〜</div></div>
-       <div class="medal-bar">所持メダル 🏅 <b>${meta.medals}</b></div>
+       <div class="medal-bar">所持勾玉 💠 <b>${meta.medals}</b></div>
        ${tabsHtml}
        ${modeHtml}
        <div class="settings-row">
@@ -408,8 +430,8 @@
       ? `<span class="gimmick-badge" data-gimmick="${gimmick}">⚠${MJ.BOSS_GIMMICKS[gimmick].name}: ${MJ.BOSS_GIMMICKS[gimmick].desc}</span>`
       : "";
     $("topbar").innerHTML =
-      `<div class="title"><span class="home" data-home="1">🏠</span><span class="help-btn" data-help="1" data-helptab="game">❓</span><span class="help-btn" data-settings="1">⚙</span> ゆるかわ百鬼夜行 <span class="sub">🏅${meta.medals}</span></div>
-       <div class="round-row"><span class="round-name ${r.boss ? "boss" : ""}">${game.mode === "endless" ? `♾️ ${game.roundIndex + 1}戦目` : `道中 ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}`} ${r.name} <span class="ba-wind">${r.windName}</span></span><span class="stat">敵HP ${target}</span></div>
+      `<div class="title"><span class="home" data-home="1">🏠</span><span class="help-btn" data-help="1" data-helptab="game">❓</span><span class="help-btn" data-settings="1">⚙</span> ゆるかわ百鬼夜行 <span class="sub">💠${meta.medals}</span></div>
+       <div class="round-row"><span class="round-name ${r.boss ? "boss" : ""}">${game.mode === "endless" ? `♾️ ${game.roundIndex + 1}戦目` : `ステージ ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}`} ${r.name} <span class="ba-wind">${r.windName}</span></span><span class="stat">敵HP ${target}</span></div>
        ${gimmickHtml}
        <div class="bar hp ${hpCls}"><span style="width:${hpPct}%"></span></div>
        <div class="score-line">敵HP 残り${hpLeft} / ${target}</div>
@@ -736,7 +758,7 @@
        <div class="resources"><span class="chip koban">小判 ${game.koban}</span></div>
        ${slotsFull ? '<div class="swap-note">妖怪枠がいっぱいです。妖怪を選ぶと入れ替え相手を選べます</div>' : ""}
        <div class="shop-items">${yokaiHtml}${drawsHtml}</div>
-       <div class="shop-actions"><button class="btn small indigo" data-reroll="1">🎲 引き直し ${rerollLabel}</button><button class="btn small play" data-next="1">次の道中へ →</button></div>`;
+       <div class="shop-actions"><button class="btn small indigo" data-reroll="1">🎲 引き直し ${rerollLabel}</button><button class="btn small play" data-next="1">次のステージへ →</button></div>`;
   }
 
   function showScreen() {
@@ -761,7 +783,7 @@
       ov.className = "overlay clear";
       const bossFlair = ci.boss ? `<p class="boss-flair">👹 ボス撃破！ 市を出るとツモが多めに回復します</p>` : "";
       const interestLine = ci.interest > 0 ? `<span class="reward-sub">（基本3 ＋ 利子 ${ci.interest}）</span>` : "";
-      const nextLabel = game.mode === "endless" ? `${game.roundIndex + 2}戦目` : `道中 ${game.roundIndex + 2}/${MJ.CAMPAIGN_LENGTH}`;
+      const nextLabel = game.mode === "endless" ? `${game.roundIndex + 2}戦目` : `ステージ ${game.roundIndex + 2}/${MJ.CAMPAIGN_LENGTH}`;
       // ★A1 v3 事前告知(§10-4): 次の戦いがボス+gimmickありなら、クリア画面で先に開示する（Balatro式フェアネス）。
       const nb = ci.nextBoss;
       const nextBossHtml = nb
@@ -789,14 +811,14 @@
     }
     const ended = game.phase === "won" || game.phase === "lost";
     if (!ended) { ov.className = "overlay hidden"; ov.innerHTML = ""; return; }
-    const medalLine = `<div class="earned">獲得メダル 🏅 +${lastEarned}　（所持 ${meta.medals}）</div>`;
+    const medalLine = `<div class="earned">獲得勾玉 💠 +${lastEarned}　（所持 ${meta.medals}）</div>`;
     if (game.phase === "won") {
       ov.className = "overlay win";
       // ★D53: 「このまま無限夜行へ続ける」は廃止（無限夜行はボス構成が異なる別モードのため、タイトルから新規ランで開始する）
-      ov.innerHTML = `<div class="card"><div class="emoji">🎉🦊🏮</div><h1>百鬼夜行 制覇！</h1><p>全8戦を打ち切りました。<br>仲間の妖怪: ${game.yokai.length}体 ／ 総アガリ ${game.totalAgari}回</p>${medalLine}<p class="unlock-note">♾️ 無限夜行モードが解禁されました！<br>タイトルのモード選択から挑戦できます</p><button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
+      ov.innerHTML = `<div class="card"><div class="emoji">🎉🦊🏮</div><h1>百鬼夜行 制覇！</h1><p>全9戦を打ち切りました。<br>仲間の妖怪: ${game.yokai.length}体 ／ 総アガリ ${game.totalAgari}回</p>${medalLine}<p class="unlock-note">♾️ 無限夜行モードが解禁されました！<br>タイトルのモード選択から挑戦できます</p><button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
     } else {
       ov.className = "overlay lose";
-      const label = game.mode === "endless" ? `♾️ 無限夜行 ${game.roundIndex + 1}戦目「${game.currentRound().name}」` : `道中 ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}「${game.currentRound().name}」`;
+      const label = game.mode === "endless" ? `♾️ 無限夜行 ${game.roundIndex + 1}戦目「${game.currentRound().name}」` : `ステージ ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}「${game.currentRound().name}」`;
       ov.innerHTML = `<div class="card"><div class="emoji">👻💦</div><h1>力尽きた…</h1><p>${label}でツモ切れ。<br>クリア数: ${game.roundsCleared}戦</p>${medalLine}<button class="btn play" data-totitle="1">茶屋へ戻る（強化）</button></div>`;
     }
   }
@@ -825,7 +847,8 @@
     itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null;
     screen = "run"; setMessage(""); render();
   }
-  function toTitle() { screen = "title"; sel = null; callSelect = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; render(); }
+  // ★D73: タイトルへ戻るたび、解禁済みなら既定モードを無限夜行に戻す（手動切替は毎回可能なままにするための既定リセット）。
+  function toTitle() { screen = "title"; sel = null; callSelect = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; selectedMode = meta.endlessUnlocked ? "endless" : "campaign"; render(); }
 
   document.addEventListener("click", (e) => {
     const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-kan],[data-callsel],[data-callcancel],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helptab],[data-helpclose],[data-acc],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm],[data-settings],[data-settingsclose],[data-giveupstart],[data-giveupconfirm],[data-giveupcancel],[data-resetstart],[data-resetconfirm],[data-resetcancel]");

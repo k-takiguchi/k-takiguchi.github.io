@@ -363,6 +363,16 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .yaku-naki { font-size: 10px; color: var(--blue); margin-top: 2px; font-weight: 700; }
 .yaku-note { font-size: 11px; color: #6a6555; line-height: 1.7; margin-top: 6px; }
 
+/* ★D73 点数計算表: 横スクロール可のコンパクトテーブル */
+.score-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 8px 0; }
+.score-table { border-collapse: collapse; width: 100%; min-width: 320px; font-size: 11px; }
+.score-table th, .score-table td { border: 1px solid #e6ddc7; padding: 4px 6px; text-align: center; white-space: nowrap; }
+.score-table thead th { background: #f4efe3; color: var(--indigo-dark); font-weight: 800; }
+.score-table tbody th { background: #f8f5ec; color: var(--vermilion); font-weight: 800; }
+.score-table .limit-note { display: block; font-size: 9px; color: var(--purple); font-weight: 700; }
+.score-table.score-table-limit { min-width: 220px; }
+.score-table.score-table-limit th { width: 30%; }
+
 /* ゲーム中トップバーの❓ボタン */
 .title .help-btn { cursor: pointer; margin-left: 4px; }
 

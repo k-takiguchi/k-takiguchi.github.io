@@ -365,10 +365,13 @@
     // ★D22: 標準麻雀の点数レンジに合わせた敵HP。「1〜2回のアガリで届く」水準。
     // 目安: 1翻30符=1000 / 3翻=3900 / 満貫=8000 / 跳満=12000。最終ボスは跳満級1発 or 満貫+α。
     // ★A1: ボス3体にギミック付与（design/boss-gimmicks-a1.md §3）
+    // ★D73: 全9戦化。7戦目までは据え置き、8戦目に通常ステージ「輪入道」target 7000 を挿入し、
+    // 旧8戦目【大ボス】ぬらりひょんを9戦目へ送る（ボスは3・6・9戦目の3体で不変）。
     return [
       { name: "小豆洗い", target: 1000 }, { name: "唐傘小僧", target: 1600 }, { name: "【ボス】提灯お化け", target: 3200, boss: true, gimmick: "kasumi" },
       { name: "河童", target: 2600 }, { name: "ろくろ首", target: 3900 }, { name: "【ボス】天狗", target: 6400, boss: true, gimmick: "omoishi" },
-      { name: "化け猫", target: 5800 }, { name: "【大ボス】ぬらりひょん", target: 8000, boss: true, gimmick: "seijaku" },
+      { name: "化け猫", target: 5800 }, { name: "輪入道", target: 7000 },
+      { name: "【大ボス】ぬらりひょん", target: 8000, boss: true, gimmick: "seijaku" },
     ];
   }
   const CAMPAIGN_ROUNDS = makeRounds();
