@@ -19,7 +19,7 @@
   // hooks: hanAdd(ctx) 加算翻 / baseAdd(ctx) 基礎点加算 / baseTimes:係数 / multTimes:係数
   // flags: 進行系(小判/巡目/敗北無効/リロール/先読み)
   const YOKAI = {
-    rokurokubi:   { name: "ろくろ首", face: "🦒", rarity: 1, price: 4, desc: "順子3つ以上のアガリで +1翻" },
+    rokurokubi:   { name: "ろくろ首", face: "🦒", rarity: 1, price: 5, desc: "順子3つ以上のアガリで +1翻" }, // ★D64 4→5小判(D56実測+0.72で★1最強。レア度は据え置き=「低レアの当たり枠」としてユーザー判断)
     tofukozo:     { name: "豆腐小僧", face: "🍮", rarity: 1, price: 4, desc: "白を含むアガリで 符+10" },
     ittanmomen:   { name: "一反木綿", face: "🧻", rarity: 2, price: 6, desc: "一気通貫か三色を含むと +1翻" },
     zashikiwarashi:{ name: "座敷童", face: "🧒", rarity: 1, price: 4, desc: "アガるたび 小判+2", flags: { kobanOnAgari: 2 } }, // ★D54 +1→+2(雨降小僧との格差是正)

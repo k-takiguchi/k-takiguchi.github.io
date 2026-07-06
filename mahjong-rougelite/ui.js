@@ -25,7 +25,8 @@
   let awardedMedals = 0; // このラン中に既にmeta.medalsへ加算した累計（継続時の二重付与防止）
   let lastEarned = 0;
   let selectedMode = "campaign"; // タイトルで選ぶ次ランのモード
-  let helpOpen = false; // 遊び方（チュートリアル）表示中
+  let helpOpen = false; // ヘルプ（❓）表示中
+  let helpTab = "basics"; // ヘルプの表示タブ: "basics"(麻雀の基本)/"game"(本作の遊び方)/"yaku"(役一覧)/"fb"(フィードバック)
   let yokaiPanelId = null; // タップで選択中の妖怪id（その1体の効果だけ表示・スマホ対応）
   let titleTab = "chaya"; // ★D41 タイトルのタブ: "chaya"(妖怪茶屋) / "zukan"(妖怪図鑑)
   // ---- ★A2 消耗品アイテム関連のUI状態 ----
@@ -57,19 +58,82 @@
       </div>`;
   }
 
-  // ★テストプレイヤー向けチュートリアル（麻雀既習者向け: 役の説明は省略、本作特有ルールに絞る）
-  function helpHtml() {
-    return `<div class="help-panel">
-      <h2>❓ 遊び方（テストプレイヤー向け）</h2>
-      <p class="help-lead">麻雀のルールは知っている前提で、<b>このゲーム特有の仕様</b>だけ説明します。</p>
+  // ---- ❓ヘルプ（タブ式・4タブ）: D65 -----------------------------------------
+  // 📜役一覧タブの唯一の正 = design/core-loop-v0.2-agari.md §3（転記のみ・翻数/条件の創作禁止）。
+  // 役名は engine.js(hand.js) が実際に返す名称（門前清自摸和／断么九 等）に合わせる。タンヤオはengine内部名"断么九"の別名として併記。
+  const YAKU_TABLE = [
+    { name: "門前清自摸和(ツモ)", han: "1翻", cond: "常に門前ツモ＝一律+1翻。", naki: "鳴くと不成立（門前限定）" },
+    { name: "嶺上開花", han: "1翻", cond: "カン直後のアガリ。ツモプールが更新されると消える。", naki: "カン後限定の役（門前・鳴きは問わない）" },
+    { name: "断么九(タンヤオ)", han: "1翻", cond: "1・9・字牌を含まない。", naki: "鳴きOK（喰いタンも1翻のまま）" },
+    { name: "平和", han: "1翻", cond: "4面子すべて順子＆雀頭が役牌でない＆両面待ちで完成。嵌張・辺張・単騎待ちでは不成立。", naki: "鳴くと不成立（門前限定）" },
+    { name: "一盃口", han: "1翻", cond: "同一順子が1組。", naki: "鳴くと不成立（門前限定）" },
+    { name: "二盃口", han: "3翻", cond: "同一順子が2組（一盃口とは排他・上位互換で置き換え）。", naki: "鳴くと不成立（門前限定）" },
+    { name: "役牌(三元)", han: "1翻/組", cond: "白・發・中の刻子（各1翻）。", naki: "鳴きOK" },
+    { name: "場風", han: "2翻", cond: "その道中の場風の刻子。2戦ごとに東→南→西→北とローテーションし、ソロは自風＝場風のダブ扱いで2翻。場風以外の風（客風）の刻子は役なし。", naki: "鳴きOK" },
+    { name: "三色同順", han: "2翻", cond: "同じ数字の順子を3色（萬・筒・索）そろえる。", naki: "鳴きOK（喰い下がり2翻→1翻）" },
+    { name: "三色同刻", han: "2翻", cond: "同じ数字の刻子を3色そろえる。", naki: "鳴きOK" },
+    { name: "一気通貫", han: "2翻", cond: "同種で123-456-789をそろえる。", naki: "鳴きOK（喰い下がり2翻→1翻）" },
+    { name: "対々和", han: "2翻", cond: "4面子すべて刻子。", naki: "鳴きOK（門前で4刻子がそろうと四暗刻に格上げ）" },
+    { name: "七対子", han: "2翻", cond: "異なる対子7組（25符固定）。", naki: "鳴くと不成立（門前限定）" },
+    { name: "三暗刻", han: "2翻", cond: "手牌側の暗刻3つ（ポンした明刻は数えない・暗槓は数える）。", naki: "鳴きOK（ただしポンした刻子は暗刻に数えない）" },
+    { name: "小三元", han: "2翻", cond: "三元牌の刻子2つ＋三元牌の雀頭。", naki: "鳴きOK" },
+    { name: "混老頭", han: "2翻", cond: "全て老頭牌(1・9)と字牌のみで構成、字牌を含む（字牌なしなら清老頭=役満）。七対子形でも成立。", naki: "鳴きOK（么九牌のポンで対々和と複合しやすい）" },
+    { name: "混全帯幺九(チャンタ)", han: "2翻", cond: "全ての面子＋雀頭が么九牌(1・9・字牌)を含む、字牌あり。", naki: "鳴きOK（喰い下がり2翻→1翻）" },
+    { name: "純全帯幺九(ジュンチャン)", han: "3翻", cond: "全ての面子＋雀頭が老頭牌(1・9)のみ、字牌なし。", naki: "鳴きOK（喰い下がり3翻→2翻）" },
+    { name: "混一色", han: "3翻", cond: "1種類の数牌＋字牌のみで構成。", naki: "鳴きOK（喰い下がり3翻→2翻）" },
+    { name: "清一色", han: "6翻", cond: "1種類の数牌のみで構成。", naki: "鳴きOK（喰い下がり6翻→5翻）" },
+  ];
+  const YAKUMAN_TABLE = [
+    { name: "国士無双", cond: "么九13種を各1枚以上＋いずれか1枚重複。", naki: "鳴くと不成立（門前限定）" },
+    { name: "四暗刻", cond: "刻子4つ（本作は全てツモ和了のため実質すべて暗刻）。", naki: "鳴くと不成立（門前限定）" },
+    { name: "大三元", cond: "白・發・中がすべて刻子。", naki: "鳴きOK" },
+    { name: "字一色", cond: "全て字牌で構成。", naki: "鳴きOK" },
+    { name: "清老頭", cond: "全て1・9の数牌で構成。", naki: "鳴きOK" },
+    { name: "緑一色", cond: "索子2・3・4・6・8と發のみで構成。", naki: "鳴きOK" },
+    { name: "小四喜", cond: "風牌の刻子3つ＋4つ目の風牌が雀頭。", naki: "鳴きOK" },
+    { name: "大四喜", cond: "東・南・西・北がすべて刻子（全暗刻のため四暗刻とも複合し得る）。", naki: "鳴きOK" },
+    { name: "九蓮宝燈", cond: "1種類の数牌で 1112345678999 ＋余剰1枚。", naki: "鳴き・カンとも不可（門前限定）" },
+  ];
 
-      <h3>🎯 目的</h3>
+  function helpBasicsHtml() {
+    return `<h3>🀄 牌の種類</h3>
+      <ul>
+        <li>牌は<b>萬子・筒子・索子</b>の数牌（1〜9）と、<b>字牌</b>（東・南・西・北・白・發・中）の合計34種類。</li>
+        <li>どの牌も<b>同じものが4枚ずつ</b>あります（全部で136枚）。</li>
+      </ul>
+      <h3>🀄 面子（メンツ）と雀頭</h3>
+      <ul>
+        <li><b>面子</b>＝3枚1組のまとまり。同じ種類で連番の<b>順子</b>（例: 2萬-3萬-4萬）か、同じ牌3枚の<b>刻子</b>（例: 5筒-5筒-5筒）の2種類があります。</li>
+        <li><b>雀頭</b>＝同じ牌2枚の対（例: 中-中）。</li>
+      </ul>
+      <h3>🎉 アガリの形</h3>
+      <ul>
+        <li>基本は<b>4つの面子＋1つの雀頭＝14枚</b>がそろうと「アガリ」です。</li>
+        <li>例: 1萬2萬3萬・4筒5筒6筒・7索8索9索・發發發・中中 → 面子4つ＋雀頭1つでアガリの形。</li>
+        <li>例外として<b>七対子</b>（違う対子を7組そろえる＝14枚）でもアガれます。</li>
+      </ul>
+      <h3>🀄 テンパイと待ち</h3>
+      <ul>
+        <li>あと1枚でアガリの形が完成する状態を<b>テンパイ</b>、その完成に必要な1枚を<b>待ち</b>と呼びます。</li>
+      </ul>
+      <h3>📈 翻と符のざっくり理解</h3>
+      <ul>
+        <li><b>翻（ハン）</b>＝役の強さ。多いほど高得点になります。<b>符（フ）</b>＝手の細かい要素に応じた点数。翻と符から最終的な得点が決まります。</li>
+        <li>得点は<b>満貫8000点で一段落する階段状</b>になっていて、そこからさらに翻が伸びると跳満・倍満…と上がっていきます。数字の詳細は「📜役一覧」タブへ。</li>
+      </ul>
+      <h3>❗ 役が無いとアガれない</h3>
+      <ul>
+        <li>普通の麻雀では「役」が無い手はアガれません。ただし本作は<b>門前清自摸和（門前ツモ）という役が常に1翻付く</b>ので、<b>鳴かなければ必ずアガれます</b>。鳴くとこの役が消えるので要注意です（詳しくは「🏮本作の遊び方」タブへ）。</li>
+      </ul>`;
+  }
+
+  function helpGameHtml() {
+    return `<h3>🎯 目的</h3>
       <ul>
         <li>ソロ麻雀ローグライト。<b>アガリの点数で敵妖怪のHP（目標点）を削る</b>。目標点に届いたら道中クリア。</li>
-        <li>「百鬼夜行」= 全8戦（3戦ごとにボス）を制覇すれば勝利。初回制覇で「無限夜行」（スコアアタック）が解禁。</li>
-        <li>点数計算は<b>ほぼ標準ルール</b>（翻・符、満貫8000/跳満12000/…/役満32000）。全てツモ和了扱い・ロンなし。</li>
+        <li>「百鬼夜行」＝全8戦（3戦ごとにボス）を制覇すれば勝利。初回制覇で「無限夜行」（スコアアタック）が解禁されます。</li>
+        <li>点数計算は<b>ほぼ標準ルール</b>（翻・符、満貫8000で頭打ちの階段）。全てツモ和了扱い・ロンなし。</li>
       </ul>
-
       <h3>🀄 手牌の進め方（本作の独自ループ）</h3>
       <ul>
         <li><b>手牌13枚＋ツモプール5枚</b>が常に見えている。タップで<b>手牌⇔プールを自由交換</b>（何回でも無料）。</li>
@@ -77,49 +141,101 @@
         <li>良い牌が無ければ「🀄 ツモを引く」でプール5枚を総入れ替え。<b>これが消耗リソース</b>。</li>
         <li>テンパイすると待ち牌・山の残り枚数・アガった場合の点数が自動表示される。</li>
       </ul>
-
       <h3>💧 ツモ回数＝HP（最重要）</h3>
       <ul>
-        <li>ツモ回数は<b>ラン全体で持ち越し</b>。開始15、<b>ステージ間は+3しか回復しない</b>（ボス撃破後は+6）。上限15。</li>
+        <li>ツモ回数は<b>ラン全体で持ち越し</b>。開始<b>15回</b>、<b>ステージ間は+3しか回復しない</b>（<b>ボス撃破後は+6</b>）。上限は開始値の15。</li>
         <li>0になった時、手牌とツモを組み替えてもアガれない場合に<b>ゲームオーバー</b>（最後のツモも判定に含みます）。</li>
         <li>ショップの🍵お茶(+3回復・買うたび値上がり)と✨甘露(全回復・レア入荷)で延命できる。</li>
         <li>つまり<b>速くアガるほど残りツモ＝体力が温存される</b>。</li>
       </ul>
-
       <h3>🗣 鳴き（ポン/チー）＝ツモの節約</h3>
       <ul>
         <li>手牌2枚＋プール1枚で刻子/順子が完成する時、プール下に「ポン/チー」ボタンが出る。</li>
         <li>鳴く → 面子を晒す → 1枚捨てる → <b>プール5枚が無料で新しくなる（ツモ回数を消費しない）</b>。</li>
-        <li>代わりに門前が崩れる: 門前ツモ・平和・七対子・一盃口/二盃口・四暗刻などが消え、喰い下がりも通常通り。</li>
+        <li>代わりに門前が崩れる: 門前ツモ・平和・七対子・一盃口/二盃口・四暗刻・九蓮宝燈などが消え、喰い下がりも適用される。</li>
         <li><b>役が無いとアガれない</b>ので、鳴くなら役の当てを（喰いタン・対々和・混一色など）。待ち表示に「役なし」と出たら注意。</li>
-        <li>ロンが無いので対々和は鳴き経由でのみ成立（門前4刻子は四暗刻に昇格）。</li>
-        <li><b>カン（暗槓）あり</b>: 同一牌4枚（手牌4枚 or 手牌3枚+プール1枚）で宣言。<b>ドラが1枚公開</b>され、プールが無料で新しくなる（嶺上）。直後にアガれば<b>嶺上開花+1翻</b>。槓符も付くが、槓子は固定され手替えできない。</li>
+        <li>ロンが無いので対々和は鳴き経由でのみ成立（門前で4刻子がそろうと四暗刻に昇格）。</li>
       </ul>
-
+      <h3>🎴 カン（暗槓）</h3>
+      <ul>
+        <li>同一牌4枚（手牌4枚 or 手牌3枚+プール1枚）の2経路で宣言できます。</li>
+        <li>宣言すると<b>カンドラが1枚公開</b>（誰でも複数累積）され、槓子は固定（手替え不可）、プールが無料で新しくなります（ツモ回数を消費しない）。</li>
+        <li>直後にアガれば<b>嶺上開花+1翻</b>。槓符（暗刻符の4倍＝中張牌16符／么九牌32符）も付きます。</li>
+      </ul>
+      <h3>🎴 ドラ</h3>
+      <ul>
+        <li>カンをするたびに<b>カンドラが1枚公開</b>され、そのドラ1枚につき+1翻（誰でも複数累積）。</li>
+        <li>妖怪「ドラ猫」を仲間にすると、ラウンドごとの通常ドラも表示されるようになります。</li>
+      </ul>
       <h3>🌪 場風ローテーション</h3>
       <ul>
         <li>2戦ごとに東場→南場→西場→北場と巡る（画面上部にバッジ表示）。</li>
         <li>役牌は<b>三元牌と「場風」のみ</b>（本家準拠）。<b>場風の刻子は2翻</b>（ソロなので自風＝場風のダブ扱い）。場風以外の風（客風）は役なしです。</li>
       </ul>
-
-      <h3>👻 妖怪（ジョーカー）とお金</h3>
+      <h3>👻 妖怪（ジョーカー）とショップ</h3>
       <ul>
-        <li>道中クリアごとにショップ。<b>小判</b>で妖怪（翻/符/点数を強化・サポート効果）や回復を買う。</li>
+        <li>道中クリアごとに「妖怪の市」が開く。<b>小判</b>で妖怪（翻/符/点数を強化・サポート効果）や道具、常設アイテムを買える。</li>
         <li>妖怪枠は5（拡張可）。枠が埋まっていても<b>入れ替え購入</b>できる。</li>
-        <li>ラン終了時（負けても）<b>メダル</b>を獲得 → タイトルの「妖怪茶屋」で恒久強化。<b>負けて強くなる設計</b>なので気軽に死んでOK。</li>
+        <li>一部の妖怪には<b>進化（⤴LvUP）</b>があり、進化元を持っていると市に上位版が出現。購入すると進化元を上書きして強化されます。</li>
+        <li>市の品ぞろえは<b>リロール（引き直し）</b>できる。<b>ラン中3回まで無料</b>、それ以降は1小判。妖怪「🔔招き鈴」を買うと無料回数が+3補充されます（6小判〜・買うたび値上がり）。</li>
       </ul>
+      <h3>🏅 メダルと妖怪茶屋・図鑑</h3>
+      <ul>
+        <li>ラン終了時（負けても）<b>メダル</b>を獲得 → タイトルの「🏯妖怪茶屋」タブで恒久強化が買える。<b>負けて強くなる設計</b>なので気軽に死んでOK。</li>
+        <li>タイトルの「📖妖怪図鑑」タブでは、メダルを払って妖怪を解放すると、その妖怪が規定ステージ以降のショップに出現するようになります。</li>
+      </ul>
+      <h3>🎮 モード</h3>
+      <ul>
+        <li><b>百鬼夜行</b>（既定）: 全8戦（3戦ごとにボス）を制覇すると勝利。</li>
+        <li><b>無限夜行</b>: 百鬼夜行を一度制覇すると解禁。8戦目以降も無限にステージが続くスコアアタックで、力尽きるまで挑戦し続けます。</li>
+      </ul>`;
+  }
 
-      <h3>📝 フィードバックで知りたいこと</h3>
+  function helpYakuHtml() {
+    const rowHtml = (y) => `<div class="yaku-row"><div class="yaku-head"><span class="yaku-name">${y.name}</span><span class="yaku-han">${y.han}</span></div><div class="yaku-cond">${y.cond}</div><div class="yaku-naki">${y.naki}</div></div>`;
+    const yakumanRowHtml = (y) => `<div class="yaku-row yakuman"><div class="yaku-head"><span class="yaku-name">${y.name}</span><span class="yaku-han">役満(13翻)</span></div><div class="yaku-cond">${y.cond}</div><div class="yaku-naki">${y.naki}</div></div>`;
+    return `<p class="help-lead">実装されている全役の早見表です（<code>core-loop-v0.2-agari.md</code> §3が正）。全てツモ和了・ロン無し前提の翻数です。</p>
+      <h3>📜 通常役</h3>
+      <div class="yaku-list">${YAKU_TABLE.map(rowHtml).join("")}</div>
+      <h3>👑 役満</h3>
+      <div class="yaku-list">${YAKUMAN_TABLE.map(yakumanRowHtml).join("")}</div>
+      <div class="yaku-note">
+        <p><b>喰い下がり</b>（鳴くと下がる翻）: 混一色3→2／清一色6→5／チャンタ2→1／ジュンチャン3→2／一気通貫2→1／三色同順2→1（喰いタンは1翻のまま変わりません）。</p>
+        <p>役満が複合した場合は<b>ダブル役満・トリプル役満</b>として32000×該当数を単純加算します（例: 字一色+四暗刻＝ダブル役満64000点）。翻数が非常に高い手には「数え役満」の階段があります: 13〜15翻＝32000（数え役満）／16〜17翻＝40000（5倍満）／18〜19翻＝48000（6倍満）／以降2翻ごとに+8000。</p>
+      </div>`;
+  }
+
+  function helpFeedbackHtml() {
+    return `<h3>📝 フィードバックで知りたいこと</h3>
       <ul>
         <li>難易度: 何ステージまで行けたか／理不尽 or ぬるいと感じた場面</li>
         <li>テンポ: 操作がだるい・待たされると感じた瞬間</li>
         <li>鳴き・お茶・妖怪の「使いたくなる度」／点数や役判定がおかしいと感じた手（スクショ歓迎）</li>
-      </ul>
-      <button class="btn play start-btn" data-helpclose="1">← タイトルへ戻る</button>
+      </ul>`;
+  }
+
+  function helpHtml() {
+    const tabs = [
+      { id: "basics", label: "🀄 麻雀の基本" },
+      { id: "game", label: "🏮 本作の遊び方" },
+      { id: "yaku", label: "📜 役一覧" },
+      { id: "fb", label: "📝 フィードバック" },
+    ];
+    const tabBtns = tabs.map((t) => `<button class="help-tab ${helpTab === t.id ? "active" : ""}" data-helptab="${t.id}">${t.label}</button>`).join("");
+    const body = helpTab === "yaku" ? helpYakuHtml() : helpTab === "fb" ? helpFeedbackHtml() : helpTab === "game" ? helpGameHtml() : helpBasicsHtml();
+    return `<div class="help-panel">
+      <h2>❓ ヘルプ</h2>
+      <div class="help-tabs">${tabBtns}</div>
+      <div class="help-body">${body}</div>
+      <button class="btn play start-btn" data-helpclose="1">← 戻る</button>
     </div>`;
   }
+  function renderHelp() {
+    const el = $("help");
+    el.className = helpOpen ? "overlay" : "overlay hidden";
+    el.innerHTML = helpOpen ? helpHtml() : "";
+  }
   function renderTitle() {
-    if (helpOpen) { $("title").innerHTML = helpHtml(); return; }
     const metaRowHtml = (id) => {
       const u = MJ.META_UPGRADES[id];
       const lv = meta.upgrades[id] || 0;
@@ -169,7 +285,7 @@
        ${tabsHtml}
        ${modeHtml}
        <div class="settings-row">
-         <button class="btn small indigo help-open" data-help="1">❓ 遊び方（はじめての方へ）</button>
+         <button class="btn small indigo help-open" data-help="1" data-helptab="basics">❓ 遊び方</button>
          <button class="btn small ${meta.confirmActions ? "indigo" : "gold"} setting-toggle" data-toggleconfirm="1">${meta.confirmActions ? "🛡 確認画面: ON" : "⚡ 確認画面: OFF"}</button>
        </div>
        <div class="setting-note">「確認画面」= 手牌引き直し・鳴き・カン・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
@@ -196,7 +312,7 @@
       ? `<span class="gimmick-badge" data-gimmick="${gimmick}">⚠${MJ.BOSS_GIMMICKS[gimmick].name}: ${MJ.BOSS_GIMMICKS[gimmick].desc}</span>`
       : "";
     $("topbar").innerHTML =
-      `<div class="title"><span class="home" data-home="1">🏠</span> ゆるかわ百鬼夜行 <span class="sub">🏅${meta.medals}</span></div>
+      `<div class="title"><span class="home" data-home="1">🏠</span><span class="help-btn" data-help="1" data-helptab="game">❓</span> ゆるかわ百鬼夜行 <span class="sub">🏅${meta.medals}</span></div>
        <div class="round-row"><span class="round-name ${r.boss ? "boss" : ""}">${game.mode === "endless" ? `♾️ ${game.roundIndex + 1}戦目` : `道中 ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}`} ${r.name} <span class="ba-wind">${r.windName}</span></span><span class="stat">目標 ${target}</span></div>
        ${gimmickHtml}
        <div class="bar"><span style="width:${pct}%"></span></div>
@@ -536,7 +652,7 @@
   function toTitle() { screen = "title"; sel = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-kan],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-kan],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helptab],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm]");
     if (!t) return;
     // 確認ダイアログの応答（他の操作より優先）
     if (t.dataset.confirmno) { pendingConfirm = null; renderConfirm(); return; }
@@ -599,8 +715,9 @@
     }
     if (t.dataset.canceldrop) { pendingDropIdx = null; render(); return; }
     if (t.dataset.unlockyokai) { unlockYokai(t.dataset.unlockyokai); return; }
-    if (t.dataset.help) { helpOpen = true; renderTitle(); return; }
-    if (t.dataset.helpclose) { helpOpen = false; renderTitle(); return; }
+    if (t.dataset.help) { helpOpen = true; if (t.dataset.helptab) helpTab = t.dataset.helptab; renderHelp(); return; } // ★D65 タイトル/ゲーム中どちらからでも同じヘルプを開く
+    if (t.dataset.helptab) { helpTab = t.dataset.helptab; renderHelp(); return; } // ヘルプ内のタブ切替
+    if (t.dataset.helpclose) { helpOpen = false; renderHelp(); return; }
     if (t.dataset.metabuy) return buyMeta(t.dataset.metabuy);
     if (t.dataset.mode) { selectedMode = t.dataset.mode; renderTitle(); return; }
     if (t.dataset.startrun) return startRun();
@@ -764,4 +881,5 @@
   }
 
   render();
+  renderHelp();
 })();
