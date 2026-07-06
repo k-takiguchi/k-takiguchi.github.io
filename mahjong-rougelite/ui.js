@@ -430,7 +430,7 @@
       ? `<span class="gimmick-badge" data-gimmick="${gimmick}">⚠${MJ.BOSS_GIMMICKS[gimmick].name}: ${MJ.BOSS_GIMMICKS[gimmick].desc}</span>`
       : "";
     $("topbar").innerHTML =
-      `<div class="title"><span class="home" data-home="1">🏠</span><span class="help-btn" data-help="1" data-helptab="game">❓</span><span class="help-btn" data-settings="1">⚙</span> ゆるかわ百鬼夜行 <span class="sub">💠${meta.medals}</span></div>
+      `<div class="title"><span class="help-btn" data-help="1" data-helptab="game">❓</span><span class="help-btn" data-settings="1">⚙</span> ゆるかわ百鬼夜行 <span class="sub">💠${meta.medals}</span></div>
        <div class="round-row"><span class="round-name ${r.boss ? "boss" : ""}">${game.mode === "endless" ? `♾️ ${game.roundIndex + 1}戦目` : `ステージ ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}`} ${r.name} <span class="ba-wind">${r.windName}</span></span><span class="stat">敵HP ${target}</span></div>
        ${gimmickHtml}
        <div class="bar hp ${hpCls}"><span style="width:${hpPct}%"></span></div>
@@ -851,7 +851,7 @@
   function toTitle() { screen = "title"; sel = null; callSelect = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; selectedMode = meta.endlessUnlocked ? "endless" : "campaign"; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-kan],[data-callsel],[data-callcancel],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helptab],[data-helpclose],[data-acc],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm],[data-settings],[data-settingsclose],[data-giveupstart],[data-giveupconfirm],[data-giveupcancel],[data-resetstart],[data-resetconfirm],[data-resetcancel]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-kan],[data-callsel],[data-callcancel],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-mode],[data-help],[data-helptab],[data-helpclose],[data-acc],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm],[data-settings],[data-settingsclose],[data-giveupstart],[data-giveupconfirm],[data-giveupcancel],[data-resetstart],[data-resetconfirm],[data-resetcancel]");
     if (!t) return;
     // 確認ダイアログの応答（他の操作より優先）
     if (t.dataset.confirmno) { pendingConfirm = null; renderConfirm(); return; }
@@ -930,7 +930,7 @@
     if (t.dataset.metabuy) return buyMeta(t.dataset.metabuy);
     if (t.dataset.mode) { selectedMode = t.dataset.mode; renderTitle(); return; }
     if (t.dataset.startrun) return startRun();
-    if (t.dataset.totitle || t.dataset.home) return toTitle();
+    if (t.dataset.totitle) return toTitle(); // ★🏠ホームボタンは撤去（タイトルへは設定の「ランをあきらめる」/決着画面から）
     if (t.dataset.callsel) { // ★D66 鳴きボタン刷新: ポン/チー/カンの選択モード切替（候補が無い種類は選べない）
       const type = t.dataset.callsel;
       const has = type === "kan" ? game.kanOptions().length > 0 : game.callOptions().some((o) => o.type === type);
