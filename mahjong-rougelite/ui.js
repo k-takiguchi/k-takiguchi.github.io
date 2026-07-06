@@ -92,7 +92,8 @@
         <li>鳴く → 面子を晒す → 1枚捨てる → <b>プール5枚が無料で新しくなる（ツモ回数を消費しない）</b>。</li>
         <li>代わりに門前が崩れる: 門前ツモ・平和・七対子・一盃口/二盃口・四暗刻などが消え、喰い下がりも通常通り。</li>
         <li><b>役が無いとアガれない</b>ので、鳴くなら役の当てを（喰いタン・対々和・混一色など）。待ち表示に「役なし」と出たら注意。</li>
-        <li>ロンが無いので対々和は鳴き経由でのみ成立（門前4刻子は四暗刻に昇格）。カンは無し。</li>
+        <li>ロンが無いので対々和は鳴き経由でのみ成立（門前4刻子は四暗刻に昇格）。</li>
+        <li><b>カン（暗槓）あり</b>: 同一牌4枚（手牌4枚 or 手牌3枚+プール1枚）で宣言。<b>ドラが1枚公開</b>され、プールが無料で新しくなる（嶺上）。直後にアガれば<b>嶺上開花+1翻</b>。槓符も付くが、槓子は固定され手替えできない。</li>
       </ul>
 
       <h3>🌪 場風ローテーション</h3>
@@ -171,7 +172,7 @@
          <button class="btn small indigo help-open" data-help="1">❓ 遊び方（はじめての方へ）</button>
          <button class="btn small ${meta.confirmActions ? "indigo" : "gold"} setting-toggle" data-toggleconfirm="1">${meta.confirmActions ? "🛡 確認画面: ON" : "⚡ 確認画面: OFF"}</button>
        </div>
-       <div class="setting-note">「確認画面」= 手牌引き直し・鳴き・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
+       <div class="setting-note">「確認画面」= 手牌引き直し・鳴き・カン・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
        <button class="btn play start-btn" data-startrun="1">▶ ${selectedMode === "endless" ? "無限夜行へ出発" : "百鬼夜行へ出発"}</button>
        <div class="meta-note">手牌13枚とツモ5枚を自由に交換。ツモの1枚で手が完成＝アガリ！役と翻で得点。</div>`;
   }
@@ -272,8 +273,10 @@
     const p = game.peekNext();
     // ★D32 ドラ猫: 今ラウンドのドラを表示
     const dora = game.yokai.includes("doraneko") ? `<span class="dora-ind">🐱 ドラ <b>${H.tileLabel(game.doraTile)}</b></span>` : "";
+    // ★D61 カンドラ: カンで公開されたドラ（誰でも・複数累積）
+    const kanDora = (game.kanDora || []).length ? `<span class="dora-ind">🎴 カンドラ <b>${game.kanDora.map((t) => H.tileLabel(t)).join("・")}</b></span>` : "";
     const peek = p.length ? `👁 山の次 → ` + p.map((c) => `<b>${MJ.tileLabelCode(c)}</b>`).join(" ") : "";
-    $("peek").innerHTML = [dora, peek].filter(Boolean).join("　");
+    $("peek").innerHTML = [dora, kanDora, peek].filter(Boolean).join("　");
   }
 
   // 翻・符・限度名の表示ラベル（★D22）
@@ -336,13 +339,16 @@
     // ★D24: 鳴き候補ボタン（ポン/チー）
     // ★D35: チーは同一面子ラベルでも消費する手牌が異なる別選択肢になり得るため、消費手牌を併記して区別可能にする
     const calls = game.callOptions();
-    const callHtml = calls.length
+    // ★D61 カン候補（暗槓）。鳴きと同列に表示
+    const kans = game.kanOptions();
+    const kanHtml = kans.map((o, k) => `<button class="btn small call-btn kan-btn" data-kan="${k}">${o.label}</button>`).join("");
+    const callHtml = (calls.length || kans.length)
       ? `<div class="call-row">${calls.map((o, k) => {
           const useNote = o.type === "chi"
             ? `<span class="call-use">手牌 ${o.use.map((c) => MJ.tileLabelCode(c)).join("・")}</span>`
             : "";
           return `<button class="btn small call-btn" data-call="${k}">${o.label}${useNote}</button>`;
-        }).join("")}</div>`
+        }).join("")}${kanHtml}</div>`
       : "";
     $("tsumo").innerHTML = `<span class="tsumo-label">ツモ${game.tsumo.length}枚</span>${tiles}${callHtml}`;
   }
@@ -520,7 +526,7 @@
   function toTitle() { screen = "title"; sel = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-kan],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helpclose],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm]");
     if (!t) return;
     // 確認ダイアログの応答（他の操作より優先）
     if (t.dataset.confirmno) { pendingConfirm = null; renderConfirm(); return; }
@@ -590,6 +596,7 @@
     if (t.dataset.startrun) return startRun();
     if (t.dataset.totitle || t.dataset.home) return toTitle();
     if (t.dataset.call != null) return doCall(parseInt(t.dataset.call, 10));
+    if (t.dataset.kan != null) return doKan(parseInt(t.dataset.kan, 10));
     if (t.dataset.zone) return onTile(t.dataset.zone, parseInt(t.dataset.i, 10));
     if (t.dataset.act === "draw") return doDraw();
     if (t.dataset.act === "redeal") return doRedeal();
@@ -695,6 +702,22 @@
         const r = game.call(o);
         sel = null;
         setMessage(r.ok ? `${o.label}！ 捨てる牌を選んでください` : (r.message || ""));
+        render();
+      },
+    });
+  }
+  // ★D61 カン（暗槓）。不可逆（槓子固定）＋資源に触れる操作なので確認を挟む
+  function doKan(k) {
+    const opts = game.kanOptions();
+    if (k < 0 || k >= opts.length) return;
+    const o = opts[k];
+    showConfirm({
+      message: `🀄 「${o.label}」しますか？<br><span class="confirm-sub">槓子は固定され手替えできません。ドラが1枚公開され、ツモが無料で新しくなります。</span>`,
+      yesLabel: "カンする",
+      onYes: () => {
+        const r = game.declareKan(o);
+        sel = null;
+        setMessage(r.ok ? `${o.label}！ 🎴 カンドラ公開: ${H.tileLabel(r.dora)}` : (r.message || ""));
         render();
       },
     });

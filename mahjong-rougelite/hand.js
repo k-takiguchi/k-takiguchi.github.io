@@ -159,7 +159,8 @@
       if (m.t === "trip") fu += YAOCHU.includes(m.i) ? 8 : 4; // 暗刻符
     }
     for (const m of (openMelds || [])) {
-      if (m.t === "trip") fu += YAOCHU.includes(m.i) ? 4 : 2; // 明刻符
+      // ★D61: 暗槓=暗刻符の4倍(中張16/么九32・標準通り)。明刻は従来通り2/4
+      if (m.t === "trip") fu += m.kan ? (YAOCHU.includes(m.i) ? 32 : 16) : (YAOCHU.includes(m.i) ? 4 : 2);
     }
     if (isYakuhaiIdx(dec.pair, ctx && ctx.baWind)) fu += 2; // 役牌雀頭（三元牌・場風のみ）
     fu += waitFuOf(dec, ctx && ctx.winTile);
@@ -282,8 +283,11 @@
   //  喰い下がり（混一色3→2, 清一色6→5, チャンタ2→1, ジュンチャン3→2, 一通2→1, 三色同順2→1）を適用。
   //  役が1つも無い場合は null（役なし和了不可）。
   function scoreDecomposition(dec, counts, ctx) {
-    const openMelds = (ctx && ctx.openMelds) || [];
-    const menzen = openMelds.length === 0;
+    const openMeldsRaw = (ctx && ctx.openMelds) || [];
+    // ★D61(カン): 暗槓{t:"kan"}は役の構造判定では「刻子」として扱う（kan:trueフラグで門前・暗刻数・符のみ特別扱い）
+    const openMelds = openMeldsRaw.map((m) => (m.t === "kan" ? { t: "trip", i: m.i, kan: true } : m));
+    const kanCount = openMeldsRaw.filter((m) => m.t === "kan").length;
+    const menzen = openMelds.length === kanCount; // 暗槓は門前を崩さない
     const seqs = dec.type === "standard" ? dec.melds.filter((m) => m.t === "seq") : [];
     const trips = dec.type === "standard" ? dec.melds.filter((m) => m.t === "trip") : [];
     const openSeqs = openMelds.filter((m) => m.t === "seq");
@@ -304,9 +308,9 @@
     if (dec.type === "kokushi") yakuman.push("国士無双");
     if (isTsuuiisou(fullCounts)) yakuman.push("字一色");
     if (isRyuuiisou(fullCounts)) yakuman.push("緑一色");
-    if (menzen && isChuurenPoutou(fullCounts)) yakuman.push("九蓮宝燈");
+    if (openMelds.length === 0 && isChuurenPoutou(fullCounts)) yakuman.push("九蓮宝燈"); // ★D61 暗槓があると牌構成が変わるため晒し無し限定
     if (dec.type === "standard") {
-      if (menzen && trips.length === 4) yakuman.push("四暗刻"); // 暗刻4つ＝門前限定
+      if (menzen && trips.length + kanCount === 4) yakuman.push("四暗刻"); // 暗刻4つ＝門前限定（★D61 暗槓も暗刻に数える）
       if (dragonTrips === 3) yakuman.push("大三元");
       if (isChinroutou(fullCounts)) yakuman.push("清老頭");
       const windTrips = allTrips.filter((m) => m.i >= 27 && m.i <= 30).length;
@@ -325,7 +329,7 @@
       yaku.push({ name: "七対子", han: 2 });
     } else {
       if (allTrips.length === 4) yaku.push({ name: "対々和", han: 2 }); // ★D24: 鳴きで到達可能に
-      if (trips.length >= 3) yaku.push({ name: "三暗刻", han: 2 }); // 暗刻3つ（晒した明刻は数えない）
+      if (trips.length + kanCount >= 3) yaku.push({ name: "三暗刻", han: 2 }); // 暗刻3つ（晒した明刻は数えない。★D61 暗槓は数える）
       // 平和: 門前限定・全順子・非役牌雀頭・両面待ち
       if (menzen && seqs.length === 4 && !isYakuhaiIdx(dec.pair, ctx && ctx.baWind) && isRyanmenWait(dec, ctx && ctx.winTile)) yaku.push({ name: "平和", han: 1 });
       if (menzen) {
@@ -389,7 +393,7 @@
     // 仕様: design/boss-gimmicks-a1.md §9-1。
     const forbid = ctx && ctx.forbidMeld;
     if (forbid) {
-      if (openMelds.some((m) => m.t === forbid)) decs = [];
+      if (openMelds.some((m) => m.t === forbid || (forbid === "trip" && m.t === "kan"))) decs = [];
       else decs = decs.filter((d) => d.type !== "standard" || d.melds.every((m) => m.t !== forbid));
     }
     if (decs.length === 0) return { agari: false };

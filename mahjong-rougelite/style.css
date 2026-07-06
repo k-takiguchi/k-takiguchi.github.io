@@ -293,3 +293,6 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ★D58 進化(A25): ショップ/図鑑の進化元注記 */
 .evo-note { color: #7c4dbe; font-weight: 700; font-size: 11px; margin-top: 2px; }
+
+/* ★D61 カンボタン: 鳴きボタンと同列・別色で識別 */
+.call-btn.kan-btn { background: #7c4dbe; }

@@ -232,17 +232,17 @@
           // 字牌の刻子数（手牌側の暗刻 + 晒した明刻）
           let honorTrips = 0;
           for (let i = 27; i <= 33; i++) if (counts[i] >= 3) honorTrips++;
-          for (const m of (st.openMelds || [])) if (m.t === "trip" && m.i >= 27) honorTrips++;
+          for (const m of (st.openMelds || [])) if ((m.t === "trip" || m.t === "kan") && m.i >= 27) honorTrips++; // ★D61 槓子も刻子
           if (honorTrips > 0) { han += honorTrips; note(`鬼火+${honorTrips}翻`); }
         }
         if (owned.includes("nureonna") && res.type === "standard" && tripCount === 0) { han += 2; note("濡女+2翻"); }
-        if (owned.includes("yosuzume") && (st.openMelds || []).length > 0) { han += 2; note("夜雀+2翻"); }
+        if (owned.includes("yosuzume") && (st.openMelds || []).some((m) => m.t !== "kan")) { han += 2; note("夜雀+2翻"); } // ★D61 暗槓は門前＝鳴きに数えない
         if (owned.includes("azukibaba") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 4; note("小豆婆+4翻"); } // ★D58 進化先として+3→+4
         if (owned.includes("umibozu") && hasYaku("清一色")) { han += 3; note("海坊主+3翻"); }
         if (owned.includes("shutendoji")) { han += 2; note("酒呑童子+2翻"); }
         // --- ★D31 追加妖怪の翻加算 ---
         if (owned.includes("fuuri") && st.baWind != null) {
-          const hasBaWindTrip = counts[st.baWind] >= 3 || (st.openMelds || []).some((m) => m.t === "trip" && m.i === st.baWind);
+          const hasBaWindTrip = counts[st.baWind] >= 3 || (st.openMelds || []).some((m) => (m.t === "trip" || m.t === "kan") && m.i === st.baWind); // ★D61 槓子も刻子
           if (hasBaWindTrip) { han += 2; note("風狸+2翻"); }
         }
         if (owned.includes("amanojaku") && (hasYaku("混全帯幺九") || hasYaku("純全帯幺九"))) { han += 2; note("天邪鬼+2翻"); }
@@ -251,7 +251,8 @@
           // ドラ枚数 = 手牌側counts + 晒し面子（刻子=3枚 / 順子=範囲内なら1枚）
           let dora = counts[st.doraTile] || 0;
           for (const m of (st.openMelds || [])) {
-            if (m.t === "trip" && m.i === st.doraTile) dora += 3;
+            if (m.t === "kan" && m.i === st.doraTile) dora += 4; // ★D61 槓子は4枚
+            else if (m.t === "trip" && m.i === st.doraTile) dora += 3;
             else if (m.t === "seq" && st.doraTile >= m.i && st.doraTile <= m.i + 2) dora += 1;
           }
           if (dora > 0) { han += dora; note(`ドラ×${dora}: +${dora}翻`); }
@@ -260,7 +261,7 @@
         if (owned.includes("fuujin")) {
           let windTrips = 0;
           for (let i = 27; i <= 30; i++) if (counts[i] >= 3) windTrips++;
-          for (const m of (st.openMelds || [])) if (m.t === "trip" && m.i >= 27 && m.i <= 30) windTrips++;
+          for (const m of (st.openMelds || [])) if ((m.t === "trip" || m.t === "kan") && m.i >= 27 && m.i <= 30) windTrips++; // ★D61 槓子も刻子
           if (windTrips > 0) { han += 2 * windTrips; note(`風神+${2 * windTrips}翻`); }
         }
       }
@@ -290,6 +291,20 @@
         if (owned.includes("ibarakidoji") && han >= 5) { han += 2; note("茨木童子+2翻"); }
         if (owned.includes("ryujin") && han >= 13) { han += 4; note("龍神+4翻"); }
       }
+      // --- ★D61 カンドラ・嶺上開花: システム由来のため静寂(hanGate)の対象外（絵馬と同じ扱い）。役満時は無効(標準準拠) ---
+      if (st.kanDora && st.kanDora.length) {
+        let dora = 0;
+        for (const dt of st.kanDora) {
+          dora += counts[dt] || 0;
+          for (const m of (st.openMelds || [])) {
+            if (m.t === "kan" && m.i === dt) dora += 4;
+            else if (m.t === "trip" && m.i === dt) dora += 3;
+            else if (m.t === "seq" && dt >= m.i && dt <= m.i + 2) dora += 1;
+          }
+        }
+        if (dora > 0) { han += dora; note(`カンドラ×${dora}: +${dora}翻`); }
+      }
+      if (st.rinshan) { han += 1; note("嶺上開花+1翻"); }
       // --- ★A2 絵馬(ema): 消耗品由来の翻加算。妖怪由来ではないため静寂(hanGate)の対象外。 ---
       if (st.pendingHanBonus) { han += st.pendingHanBonus; note(`絵馬: +${st.pendingHanBonus}翻`); }
     }
@@ -439,6 +454,8 @@
       this.pendingHanBonus = 0;
       this.doraTile = Math.floor(this.rng() * 34); // ★D32 ドラ牌（ドラ猫所持時のみ効果・表示）
       this.freeTsumoRerollLeft = yokaiFlag(this.yokai, "freeTsumoReroll", "sum"); // 化け草鞋
+      this.kanDora = []; // ★D61 カンで公開されたドラ（ラウンド毎リセット・カン1回につき1種追加）
+      this.rinshanActive = false; // ★D61 嶺上開花（カン直後のアガリ+1翻。プール更新で解除）
       this.koban += yokaiFlag(this.yokai, "kobanOnRound", "sum"); // 福助
       // ★A1 v3 眠り(nemuri): このボス戦だけ所持妖怪からランダム1体を休眠させる（採点に不参加。§10-2）。
       this.sleepingYokai = (this.effectiveGimmick() === "nemuri" && this.yokai.length)
@@ -467,6 +484,7 @@
     redealHand() {
       if (this.phase !== "round") return { ok: false };
       if (this.mulligansLeft <= 0) return { ok: false, message: "引き直しはできません" };
+      this.rinshanActive = false; // ★D61
       for (const c of this.hand) this.discardPile.push(c);
       for (const c of this.tsumo) this.discardPile.push(c);
       this.dealNewHand(true); // 晒した面子はそのまま
@@ -517,12 +535,13 @@
     _scoreState() {
       // ★A1 v3 眠り(nemuri): 休眠中の妖怪を採点上の実効リストから除外。
       const effYokai = this.sleepingYokai ? this.yokai.filter((id) => id !== this.sleepingYokai) : this.yokai;
-      return { yokai: effYokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds, doraTile: this.doraTile, gimmick: this.effectiveGimmick(), lastAgariYaku: this.lastAgariYaku, pendingHanBonus: this.pendingHanBonus || 0 };
+      return { yokai: effYokai, koban: this.koban, totalAgari: this.totalAgari, agariThisRound: this.agariThisRound, engimono: this.engimono, drawsLeft: this.drawsLeft, baWind: this.currentRound().wind, openMelds: this.melds, doraTile: this.doraTile, gimmick: this.effectiveGimmick(), lastAgariYaku: this.lastAgariYaku, pendingHanBonus: this.pendingHanBonus || 0, kanDora: this.kanDora || [], rinshan: !!this.rinshanActive };
     }
     // 化け草鞋: ツモだけ無料で引き直す（ツモ回数を消費しない・回数制限）
     rerollTsumo() {
       if (this.phase !== "round") return { ok: false };
       if (this.freeTsumoRerollLeft <= 0) return { ok: false, message: "無料引き直しがありません" };
+      this.rinshanActive = false; // ★D61
       for (const c of this.tsumo) this.discardPile.push(c);
       this.tsumo = sortCodes(this._drawN(this._tsumoCount()));
       this.freeTsumoRerollLeft--;
@@ -553,6 +572,48 @@
       this.tsumo = sortCodes(this.tsumo);
       return { ok: true };
     }
+    // ---- ★D61 カン（暗槓・kan-spec.md） ----------------------------------------
+    // プールカン(手牌3+プール1) / 手牌カン(手牌4)。報酬=プール無料リフレッシュ+カンドラ1種公開+嶺上開花(+1翻)+槓符。
+    kanOptions() {
+      if (this.phase !== "round" || this.mustDiscard) return [];
+      if (this.melds.length >= 4) return [];
+      // 刻封じ: 槓子=刻子扱いで和了に使えないため宣言自体を封じる（詰み防止）
+      if (this.effectiveGimmick() === "kokufuji") return [];
+      const handCount = {};
+      for (const c of this.hand) handCount[c] = (handCount[c] || 0) + 1;
+      const opts = [];
+      for (const c of Object.keys(handCount)) {
+        const t = MJHand.codeToIndex(c);
+        if (handCount[c] >= 4) opts.push({ code: c, from: "hand", meldTile: t, label: "カン " + MJHand.tileLabel(t) });
+        else if (handCount[c] === 3 && this.tsumo.includes(c)) opts.push({ code: c, from: "pool", meldTile: t, label: "カン " + MJHand.tileLabel(t) });
+      }
+      return opts;
+    }
+    declareKan(opt) {
+      if (this.phase !== "round" || this.mustDiscard) return { ok: false };
+      const valid = this.kanOptions().some((o) => o.code === opt.code && o.from === opt.from);
+      if (!opt || !valid) return { ok: false, message: "カンできません" };
+      const c = opt.code;
+      if (opt.from === "pool") {
+        for (let k = 0; k < 3; k++) this.hand.splice(this.hand.indexOf(c), 1);
+        this.tsumo.splice(this.tsumo.indexOf(c), 1);
+      } else {
+        for (let k = 0; k < 4; k++) this.hand.splice(this.hand.indexOf(c), 1);
+        // 嶺上牌: 手牌枚数(13-3n)を保つため山から1枚補充
+        const rep = this._drawN(1);
+        for (const x of rep) this.hand.push(x);
+      }
+      this.hand = sortCodes(this.hand);
+      this.melds.push({ t: "kan", i: opt.meldTile });
+      // カンドラ公開（ドラ猫の所持不要・誰でも。1カン=1種追加）
+      this.kanDora.push(Math.floor(this.rng() * 34));
+      // 嶺上=プール無料リフレッシュ（ツモ回数を消費しない）
+      for (const x of this.tsumo) this.discardPile.push(x);
+      this.tsumo = sortCodes(this._drawN(this._tsumoCount()));
+      this.rinshanActive = true;
+      return { ok: true, label: opt.label, dora: this.kanDora[this.kanDora.length - 1] };
+    }
+
     // ---- ★D24 鳴き（ポン/チー） ----------------------------------------------
     // ツモの1枚＋手牌の2枚で刻子/順子が完成するとき宣言できる。
     // メリット: 宣言後に1枚捨てると、ツモプールが無料で全リフレッシュ（=ツモ回数の前借り）。
@@ -608,6 +669,7 @@
     discardForCall(handIdx) {
       if (this.phase !== "round" || !this.mustDiscard) return { ok: false };
       if (handIdx < 0 || handIdx >= this.hand.length) return { ok: false };
+      this.rinshanActive = false; // ★D61
       this.discardPile.push(this.hand.splice(handIdx, 1)[0]);
       this.hand = sortCodes(this.hand);
       for (const c of this.tsumo) this.discardPile.push(c);
@@ -717,6 +779,7 @@
         if (this._winReachable()) return { ok: false, lastChance: true, message: "最後のツモです。手牌とツモを組み替えてアガリを狙えます" };
         const out = { ok: false, message: "ツモ回数がありません" }; this._handleDrawsOut(out); return out;
       }
+      this.rinshanActive = false; // ★D61 プール更新で嶺上開花は消える
       for (const c of this.tsumo) this.discardPile.push(c);
       const drawn = this._drawN(this._tsumoCount());
       // ★D32 件: 役満テンパイ中は「役満になる待ち牌」を確定で混ぜる（1ラウンド1回・見上げ入道より優先）
@@ -790,6 +853,7 @@
       this.koban += yokaiFlag(this.yokai, "kobanOnAgari", "sum");
       // ★A2 絵馬(ema): アガリ成立で予約していた翻ボーナスを消費(0へリセット)。
       this.pendingHanBonus = 0;
+      this.rinshanActive = false; // ★D61 嶺上開花は1アガリ限り
       const out = { ok: true, agari: true, score: info.score, han: info.han, fu: info.fu, limit: info.limit, yakumanCount: info.yakumanCount, yaku: info.yaku, log: info.log, winTile: info.winTile };
       if (this.roundScore >= this.effectiveTarget()) {
         this._finishRoundWin(out);
@@ -1044,6 +1108,7 @@
         case "habauchiwa": {
           // 天狗の羽団扇: 手牌＋ツモを引き直す(redealHandと同ロジックだがツモ回数・引き直し回数どちらも消費しない)。
           if (this.phase !== "round") return { ok: false, message: "今は使えません" };
+          this.rinshanActive = false; // ★D61
           for (const c of this.hand) this.discardPile.push(c);
           for (const c of this.tsumo) this.discardPile.push(c);
           this.dealNewHand(true); // 晒した面子はそのまま
