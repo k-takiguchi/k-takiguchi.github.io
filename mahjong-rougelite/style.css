@@ -37,6 +37,10 @@ html, body {
 .stat { font-size: 12px; color: var(--indigo-dark); font-weight: 700; }
 .bar { height: 16px; background: #e6ddc7; border-radius: 10px; overflow: hidden; box-shadow: inset 0 1px 3px var(--shadow); }
 .bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--vermilion)); transition: width .35s ease; }
+/* ★D66 敵HPバー: 残りHPの割合で幅が減っていく。閾値で色を切替える */
+.bar.hp.hp-green > span { background: linear-gradient(90deg, #7fc79a, var(--green)); }
+.bar.hp.hp-yellow > span { background: linear-gradient(90deg, #f0d382, var(--gold)); }
+.bar.hp.hp-red > span { background: linear-gradient(90deg, #ef8f78, var(--vermilion)); }
 .score-line { font-size: 12px; text-align: right; color: #6a6555; margin-top: 2px; }
 .resources { display: flex; gap: 8px; justify-content: center; font-size: 13px; font-weight: 800; }
 .chip { background: var(--card); border-radius: 20px; padding: 3px 12px; box-shadow: 0 2px 5px var(--shadow); }
@@ -176,6 +180,13 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .call-btn { background: linear-gradient(135deg, var(--purple), #4d3f73); }
 /* ★D35: チー候補ボタンの消費手牌を小さく併記（同一面子ラベルの選択肢を区別可能に） */
 .call-btn .call-use { display: block; font-size: 9px; font-weight: 600; color: #d8d1ea; margin-top: 2px; }
+/* ★D66 鳴きボタン刷新: call-rowは常時ポン/チー/カンの3ボタン。選択中は.activeでハイライトし、直下に候補実行ボタン行を出す */
+.call-sel { background: linear-gradient(135deg, #a99bd6, var(--purple)); min-width: 64px; }
+.call-sel.active { background: linear-gradient(135deg, var(--vermilion), #b5231b); box-shadow: 0 0 0 2px #fff3ee, 0 3px 8px var(--shadow); }
+.call-exec-row { width: 100%; display: flex; gap: 6px; justify-content: center; margin-top: 6px; flex-wrap: wrap; animation: pop .15s ease; }
+.call-cancel { background: linear-gradient(135deg, #8a8575, #5a5545); }
+/* 選択中の鳴き候補に関係する牌（プール側＋消費される手牌）をハイライト */
+.tile.call-hi { border-color: var(--vermilion); box-shadow: 0 0 0 2px rgba(217,87,63,.55); }
 .open-note { font-size: 10px; color: var(--vermilion); }
 .agari-banner .big.limit { text-shadow: 0 0 10px rgba(217, 164, 65, .6); }
 .btn.discard { background: linear-gradient(135deg, var(--green), #37624c); }
@@ -286,6 +297,25 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .help-panel li { font-size: 12px; line-height: 1.8; color: #4a4638; margin-bottom: 2px; }
 .help-panel b { color: var(--indigo-dark); }
 .help-panel p { font-size: 12px; line-height: 1.7; color: #4a4638; margin: 6px 0; }
+
+/* ★D66 ヘルプのアコーディオン化: 見出し(常時表示)をタップすると本文(hiddenクラス)が開閉する */
+.acc-head {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: none; border: none; border-bottom: 2px solid #f0e8d8; padding: 0 0 3px; margin: 16px 0 6px;
+  font: inherit; font-size: 14px; font-weight: 800; color: var(--vermilion); cursor: pointer; text-align: left;
+}
+.acc-head:active { opacity: .7; }
+.acc-indicator { font-size: 11px; color: #b6ae98; margin-left: 8px; flex-shrink: 0; }
+/* 役一覧の行は独自のカード(.yaku-row)を持つため、acc-headの余白・下線をリセットする */
+.yaku-row .acc-head.yaku-head { border-bottom: none; margin: 0; padding: 0; }
+
+/* ヘルプ上部の閉じるボタン（★D66・下部の「← 戻る」は維持） */
+.help-head-row { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 8px; }
+.help-head-row h2 { margin: 0; flex: 1; }
+.help-close-x {
+  border: none; border-radius: 14px; padding: 6px 10px; font-size: 12px; font-weight: 800; cursor: pointer;
+  background: var(--indigo); color: #fff; flex-shrink: 0;
+}
 
 /* タブ切替 */
 .help-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; position: sticky; top: -16px; background: var(--card); padding-top: 4px; z-index: 1; }
