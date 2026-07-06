@@ -178,12 +178,32 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .open-meld .meld-tile { font-size: 13px; font-weight: 800; color: #6a6555; background: var(--card); border-radius: 5px; padding: 2px 4px; }
 .call-row { width: 100%; display: flex; gap: 6px; justify-content: center; margin-top: 4px; flex-wrap: wrap; }
 .call-btn { background: linear-gradient(135deg, var(--purple), #4d3f73); }
-/* ★D35: チー候補ボタンの消費手牌を小さく併記（同一面子ラベルの選択肢を区別可能に） */
-.call-btn .call-use { display: block; font-size: 9px; font-weight: 600; color: #d8d1ea; margin-top: 2px; }
 /* ★D66 鳴きボタン刷新: call-rowは常時ポン/チー/カンの3ボタン。選択中は.activeでハイライトし、直下に候補実行ボタン行を出す */
 .call-sel { background: linear-gradient(135deg, #a99bd6, var(--purple)); min-width: 64px; }
 .call-sel.active { background: linear-gradient(135deg, var(--vermilion), #b5231b); box-shadow: 0 0 0 2px #fff3ee, 0 3px 8px var(--shadow); }
-.call-exec-row { width: 100%; display: flex; gap: 6px; justify-content: center; margin-top: 6px; flex-wrap: wrap; animation: pop .15s ease; }
+/* ★D67 候補実行ボタンは縦1列（1行1候補）。「✕ やめる」は最下段(execHtmlの後に置くだけで自然に最下段になる)。 */
+.call-exec-row { width: 100%; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; animation: pop .15s ease; }
+.call-btn { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: flex-start; text-align: left; }
+.call-type-tag { font-size: 11px; font-weight: 800; color: #fff; opacity: .85; flex-shrink: 0; min-width: 26px; }
+.call-chips { display: flex; gap: 3px; align-items: center; flex-wrap: nowrap; overflow-x: auto; }
+/* ★D67 候補ボタン内のミニ牌チップ（.tile/.meld-tileより小型・スマホ縦画面前提） */
+.mini-tile {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 22px; height: 30px; border-radius: 5px; background: var(--card); color: var(--ink);
+  font-weight: 800; position: relative; border: 1.5px solid transparent; flex-shrink: 0;
+}
+.mini-tile .num { font-size: 13px; line-height: 1; }
+.mini-tile .suit { font-size: 6px; position: absolute; bottom: 1px; right: 2px; opacity: .7; }
+.mini-tile.m { color: var(--vermilion); }
+.mini-tile.p { color: var(--blue); }
+.mini-tile.s { color: var(--green); }
+.mini-tile.z { color: var(--purple); }
+/* プール(ツモ)由来の1枚を強調 */
+.mini-tile.pool { border-color: var(--gold); box-shadow: 0 0 0 1.5px var(--gold); }
+.mini-tile .pool-badge {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  font-size: 7px; font-weight: 800; color: #6a4a12; background: var(--gold); border-radius: 4px; padding: 0 3px; white-space: nowrap;
+}
 .call-cancel { background: linear-gradient(135deg, #8a8575, #5a5545); }
 /* 選択中の鳴き候補に関係する牌（プール側＋消費される手牌）をハイライト */
 .tile.call-hi { border-color: var(--vermilion); box-shadow: 0 0 0 2px rgba(217,87,63,.55); }
@@ -241,10 +261,20 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 .confirm-card .confirm-sub { display: block; font-size: 12px; font-weight: 600; color: #8a8575; margin-top: 6px; line-height: 1.6; }
 .confirm-card .btn { display: block; width: 100%; margin-top: 8px; }
 
-/* ---- タイトルの設定行（確認画面ON/OFF）---- */
+/* ---- タイトルの設定行（❓遊び方・⚙設定）---- */
 .settings-row { display: flex; gap: 8px; margin-top: 10px; }
 .settings-row .btn { flex: 1; margin: 0; }
-.setting-note { font-size: 11px; color: #8a8575; line-height: 1.6; margin: 6px 2px 0; text-align: center; }
+
+/* ---- ⚙ 設定オーバーレイ(D67): 確認画面ON/OFF・ランをあきらめる・データの初期化 ---- */
+#settings.overlay { z-index: 15; align-items: flex-start; padding-top: 28px; }
+.settings-panel .settings-item { padding: 12px 0; border-bottom: 1px solid #f0e8d8; }
+.settings-panel .settings-item:last-child { border-bottom: none; }
+.settings-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.settings-item-title { font-size: 14px; font-weight: 800; color: var(--indigo-dark); }
+.settings-item-note { font-size: 11px; color: #8a8575; line-height: 1.6; margin-top: 6px; }
+.settings-danger .settings-item-note { color: var(--vermilion); font-weight: 700; }
+.settings-actions { display: flex; gap: 8px; margin-top: 8px; }
+.settings-actions .btn { flex: 1; margin: 0; }
 
 /* ---- タイトル & メタショップ ---- */
 .title-screen { padding: 8px 4px 20px; }

@@ -8,20 +8,25 @@
   const META_KEY = "yurukawa_mj_meta";
   function loadMeta() { try { const s = localStorage.getItem(META_KEY); if (s) return JSON.parse(s); } catch (e) {} return { medals: 0, upgrades: {}, endlessUnlocked: false, unlockedYokai: [] }; }
   function saveMeta() { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {} }
-
-  let meta = loadMeta();
-  if (meta.endlessUnlocked === undefined) meta.endlessUnlocked = false;
-  if (!Array.isArray(meta.unlockedYokai)) meta.unlockedYokai = []; // 旧セーブ互換
-  // ★D60 id改名の移行(D59の改名に合わせidも統一)。mapは同時適用なので旧shutendoji→ibarakidoji/旧hakutaku→shutendojiが混線しない
-  {
+  // ★D67 データの初期化(設定画面)で loadMeta の初期値経路を再利用するため、旧セーブ互換の移行処理を関数化。
+  function normalizeMeta(m) {
+    if (m.endlessUnlocked === undefined) m.endlessUnlocked = false;
+    if (!Array.isArray(m.unlockedYokai)) m.unlockedYokai = []; // 旧セーブ互換
+    // ★D60 id改名の移行(D59の改名に合わせidも統一)。mapは同時適用なので旧shutendoji→ibarakidoji/旧hakutaku→shutendojiが混線しない
     const RENAMED = { itsumade: "yukijoro", ungaikyo: "azukibaba", shutendoji: "ibarakidoji", hakutaku: "shutendoji" };
-    meta.unlockedYokai = meta.unlockedYokai.map((id) => RENAMED[id] || id);
+    m.unlockedYokai = m.unlockedYokai.map((id) => RENAMED[id] || id);
+    if (m.confirmActions === undefined) m.confirmActions = true; // 誤タップ防止の確認画面（既定ON・慣れた人はOFF可）
+    return m;
   }
-  if (meta.confirmActions === undefined) meta.confirmActions = true; // 誤タップ防止の確認画面（既定ON・慣れた人はOFF可）
+
+  let meta = normalizeMeta(loadMeta());
   let screen = "title";
   let game = null;
   let sel = null; // 交換選択 {zone:'hand'|'tsumo', i}
   let callSelect = null; // ★D66 鳴き選択モード: null|"pon"|"chi"|"kan"（call-row の3ボタンで選択→候補実行ボタンをタップして実行）
+  let settingsOpen = false; // ★D67 設定（⚙）オーバーレイ表示中
+  let settingsGiveupConfirm = false; // ★D67「ランをあきらめる」の確認ステップ表示中
+  let settingsResetStep = 0; // ★D67 データの初期化の段階(0=通常/1=1回目タップ後の確認表示)
   let pendingSwapId = null; // 妖怪枠が埋まっている時に購入しようとした妖怪id（誰を手放すか選択中）
   let awardedMedals = 0; // このラン中に既にmeta.medalsへ加算した累計（継続時の二重付与防止）
   let lastEarned = 0;
@@ -58,6 +63,81 @@
         <button class="btn play gold" data-confirmyes="1">${c.yesLabel || "はい"}</button>
         <button class="btn small indigo" data-confirmno="1">${c.noLabel || "やめる"}</button>
       </div>`;
+  }
+
+  // ---- ⚙ 設定（D67）: 確認画面ON/OFF・ランをあきらめる・データの初期化 -----------
+  // タイトル/プレイ中どちらからでも開ける専用オーバーレイ。項目はscreen("title"/"run")で出し分ける。
+  function settingsHtml() {
+    const inRun = screen === "run";
+    const confirmSection =
+      `<div class="settings-item">
+         <div class="settings-item-head">
+           <span class="settings-item-title">🛡 確認画面</span>
+           <button class="btn small ${meta.confirmActions ? "indigo" : "gold"}" data-toggleconfirm="1">${meta.confirmActions ? "ON" : "OFF"}</button>
+         </div>
+         <div class="settings-item-note">手牌引き直し・鳴き・カン・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
+       </div>`;
+    const giveupSection = !inRun ? "" : (
+      settingsGiveupConfirm
+        ? `<div class="settings-item settings-danger">
+             <div class="settings-item-note">本当にあきらめますか？ 獲得メダルを精算してタイトルへ戻ります</div>
+             <div class="settings-actions">
+               <button class="btn small gold" data-giveupconfirm="1">あきらめる</button>
+               <button class="btn small indigo" data-giveupcancel="1">やめる</button>
+             </div>
+           </div>`
+        : `<div class="settings-item">
+             <div class="settings-item-head">
+               <span class="settings-item-title">🏳 ランをあきらめる</span>
+               <button class="btn small indigo" data-giveupstart="1">あきらめる</button>
+             </div>
+           </div>`
+    );
+    const resetSection = inRun ? "" : (
+      settingsResetStep >= 1
+        ? `<div class="settings-item settings-danger">
+             <div class="settings-item-note">本当に初期化しますか？元に戻せません</div>
+             <div class="settings-actions">
+               <button class="btn small gold" data-resetconfirm="1">初期化する</button>
+               <button class="btn small indigo" data-resetcancel="1">やめる</button>
+             </div>
+           </div>`
+        : `<div class="settings-item">
+             <div class="settings-item-head">
+               <span class="settings-item-title">🗑 データの初期化</span>
+               <button class="btn small indigo" data-resetstart="1">初期化</button>
+             </div>
+             <div class="settings-item-note">メダル・茶屋の強化・図鑑の解放をすべて消して最初の状態に戻します（テスト用）</div>
+           </div>`
+    );
+    return `<div class="help-panel settings-panel">
+      <div class="help-head-row"><h2>⚙ 設定</h2><button class="help-close-x" data-settingsclose="1">✕ 閉じる</button></div>
+      ${confirmSection}${giveupSection}${resetSection}
+    </div>`;
+  }
+  function renderSettings() {
+    const el = $("settings");
+    el.className = settingsOpen ? "overlay" : "overlay hidden";
+    el.innerHTML = settingsOpen ? settingsHtml() : "";
+  }
+  // ランをあきらめる: 敗北時と同じ差分方式(awardedMedals)でメダルを精算し、engineには触らずタイトルへ戻る。
+  function giveUpRun() {
+    const total = game.medalsEarned();
+    const delta = total - awardedMedals;
+    if (delta > 0) { meta.medals += delta; awardedMedals = total; lastEarned = delta; }
+    saveMeta();
+    settingsOpen = false; settingsGiveupConfirm = false; settingsResetStep = 0;
+    renderSettings();
+    toTitle();
+  }
+  // データの初期化: 保存キーを削除しmetaを初期値で再生成（loadMetaの初期値経路を再利用）
+  function resetMetaData() {
+    try { localStorage.removeItem(META_KEY); } catch (e) {}
+    meta = normalizeMeta(loadMeta());
+    saveMeta();
+    settingsOpen = false; settingsGiveupConfirm = false; settingsResetStep = 0;
+    renderSettings();
+    renderTitle();
   }
 
   // ---- ❓ヘルプ（タブ式・4タブ）: D65 -----------------------------------------
@@ -294,19 +374,23 @@
        ${modeHtml}
        <div class="settings-row">
          <button class="btn small indigo help-open" data-help="1" data-helptab="basics">❓ 遊び方</button>
-         <button class="btn small ${meta.confirmActions ? "indigo" : "gold"} setting-toggle" data-toggleconfirm="1">${meta.confirmActions ? "🛡 確認画面: ON" : "⚡ 確認画面: OFF"}</button>
+         <button class="btn small indigo" data-settings="1">⚙ 設定</button>
        </div>
-       <div class="setting-note">「確認画面」= 手牌引き直し・鳴き・カン・アガリ時のツモの確認。慣れたらOFFでサクサク操作。</div>
        <button class="btn play start-btn" data-startrun="1">▶ ${selectedMode === "endless" ? "無限夜行へ出発" : "百鬼夜行へ出発"}</button>
        <div class="meta-note">手牌13枚とツモ5枚を自由に交換。ツモの1枚で手が完成＝アガリ！役と翻で得点。</div>`;
   }
 
+  // 牌1枚の中身(数字/字牌ラベル)HTML。tileHtml(手牌・ツモの大サイズ)とcallChipHtml(候補ボタンのミニ牌)で共有する。
+  function tileBodyHtml(code) {
+    const t = { suit: code[0], rank: parseInt(code.slice(1)) };
+    return t.suit === "z" ? `<span class="num">${MJ.tileLabelCode(code)}</span>` : `<span class="num">${t.rank}</span><span class="suit">${SUIT_KANJI[t.suit]}</span>`;
+  }
+  function tileSuitCls(code) { return code[0] === "z" ? "z" : code[0]; }
+
   function tileHtml(code, index, zone, extraCls) {
     const s = (sel && sel.zone === zone && sel.i === index) ? " selected" : "";
-    const t = { suit: code[0], rank: parseInt(code.slice(1)) };
-    const cls = t.suit === "z" ? "z" : t.suit;
-    const body = t.suit === "z" ? `<span class="num">${MJ.tileLabelCode(code)}</span>` : `<span class="num">${t.rank}</span><span class="suit">${SUIT_KANJI[t.suit]}</span>`;
-    return `<div class="tile ${cls}${s}${extraCls || ""}" data-zone="${zone}" data-i="${index}">${body}</div>`;
+    const cls = tileSuitCls(code);
+    return `<div class="tile ${cls}${s}${extraCls || ""}" data-zone="${zone}" data-i="${index}">${tileBodyHtml(code)}</div>`;
   }
 
   function renderTopBar() {
@@ -324,7 +408,7 @@
       ? `<span class="gimmick-badge" data-gimmick="${gimmick}">⚠${MJ.BOSS_GIMMICKS[gimmick].name}: ${MJ.BOSS_GIMMICKS[gimmick].desc}</span>`
       : "";
     $("topbar").innerHTML =
-      `<div class="title"><span class="home" data-home="1">🏠</span><span class="help-btn" data-help="1" data-helptab="game">❓</span> ゆるかわ百鬼夜行 <span class="sub">🏅${meta.medals}</span></div>
+      `<div class="title"><span class="home" data-home="1">🏠</span><span class="help-btn" data-help="1" data-helptab="game">❓</span><span class="help-btn" data-settings="1">⚙</span> ゆるかわ百鬼夜行 <span class="sub">🏅${meta.medals}</span></div>
        <div class="round-row"><span class="round-name ${r.boss ? "boss" : ""}">${game.mode === "endless" ? `♾️ ${game.roundIndex + 1}戦目` : `道中 ${game.roundIndex + 1}/${MJ.CAMPAIGN_LENGTH}`} ${r.name} <span class="ba-wind">${r.windName}</span></span><span class="stat">敵HP ${target}</span></div>
        ${gimmickHtml}
        <div class="bar hp ${hpCls}"><span style="width:${hpPct}%"></span></div>
@@ -468,24 +552,50 @@
         }
       }
     };
+    // ★D67 和集合ハイライトは誤読のもと(どの牌がどの候補ボタンに対応するか読めない)なので廃止。
+    // 選択した種別の候補が1つの時だけ、その1候補分をハイライトする。2つ以上ある時は盤面側は出さない(候補ボタンのミニ牌表示で判別)。
     if (callSelect === "kan") {
-      for (const o of game.kanOptions()) {
-        if (o.from === "pool") {
-          const ti = game.tsumo.indexOf(o.code);
-          if (ti >= 0) tsumo.add(ti);
-          markHand([o.code, o.code, o.code]);
-        } else {
-          markHand([o.code, o.code, o.code, o.code]);
-        }
+      const opts = game.kanOptions();
+      if (opts.length !== 1) return { hand, tsumo };
+      const o = opts[0];
+      if (o.from === "pool") {
+        const ti = game.tsumo.indexOf(o.code);
+        if (ti >= 0) tsumo.add(ti);
+        markHand([o.code, o.code, o.code]);
+      } else {
+        markHand([o.code, o.code, o.code, o.code]);
       }
     } else {
-      for (const o of game.callOptions()) {
-        if (o.type !== callSelect) continue;
-        tsumo.add(o.tsumoIdx);
-        markHand(o.use);
-      }
+      const matched = game.callOptions().filter((o) => o.type === callSelect);
+      if (matched.length !== 1) return { hand, tsumo };
+      const o = matched[0];
+      tsumo.add(o.tsumoIdx);
+      markHand(o.use);
     }
     return { hand, tsumo };
+  }
+
+  // ★D67 候補実行ボタンのミニ牌チップ1枚分。プール由来の牌は強調＋「ツモ」バッジで区別する。
+  function callChipHtml(code, isPool) {
+    const cls = tileSuitCls(code);
+    const badge = isPool ? `<span class="pool-badge">ツモ</span>` : "";
+    return `<span class="mini-tile ${cls}${isPool ? " pool" : ""}">${tileBodyHtml(code)}${badge}</span>`;
+  }
+  // pon/chi候補(callOptions()の要素)を構成する3枚のチップ({code,pool}の配列)を組み立てる。
+  function callChipsForCall(o) {
+    if (o.type === "pon") {
+      const poolCode = game.tsumo[o.tsumoIdx];
+      return [{ code: poolCode, pool: true }, { code: o.use[0], pool: false }, { code: o.use[1], pool: false }];
+    }
+    // チー: 3枚の並び(低い順)で表示し、ツモプールから取った1枚だけを強調する。
+    const poolIdx = H.codeToIndex(game.tsumo[o.tsumoIdx]);
+    const low = o.meldTile;
+    return [low, low + 1, low + 2].map((idx) => ({ code: H.indexToCode(idx), pool: idx === poolIdx }));
+  }
+  // カン候補(kanOptions()の要素)を構成する4枚のチップ。プールカンは1枚だけ強調、手牌カンは4枚とも通常表示。
+  function callChipsForKan(o) {
+    const n = 4;
+    return Array.from({ length: n }, (_, i) => ({ code: o.code, pool: o.from === "pool" && i === n - 1 }));
   }
 
   function renderHand() {
@@ -523,17 +633,21 @@
     const selBtn = (type, label, has) =>
       `<button class="btn small call-sel${callSelect === type ? " active" : ""}${type === "kan" ? " kan-btn" : ""}" data-callsel="${type}" ${has ? "" : "disabled"}>${label}</button>`;
     const callRowHtml = `<div class="call-row">${selBtn("pon", "ポン", ponHas)}${selBtn("chi", "チー", chiHas)}${selBtn("kan", "カン", kanHas)}</div>`;
+    // ★D67 候補実行ボタンは「ミニ牌表示」に刷新: テキストラベルの代わりに面子を構成する牌チップを並べる
+    // (プール由来の1枚を強調)。種別ラベル(ポン/チー/カン)はボタン先頭に小さく残す。
     let execHtml = "";
     if (callSelect === "pon" || callSelect === "chi") {
+      const typeLabel = callSelect === "pon" ? "ポン" : "チー";
       execHtml = calls.map((o, k) => {
         if (o.type !== callSelect) return "";
-        const useNote = o.type === "chi"
-          ? `<span class="call-use">手牌 ${o.use.map((c) => MJ.tileLabelCode(c)).join("・")}</span>`
-          : "";
-        return `<button class="btn small call-btn" data-call="${k}">${o.label}${useNote}</button>`;
+        const chipsHtml = callChipsForCall(o).map((c) => callChipHtml(c.code, c.pool)).join("");
+        return `<button class="btn small call-btn" data-call="${k}"><span class="call-type-tag">${typeLabel}</span><span class="call-chips">${chipsHtml}</span></button>`;
       }).join("");
     } else if (callSelect === "kan") {
-      execHtml = kans.map((o, k) => `<button class="btn small call-btn kan-btn" data-kan="${k}">${o.label}</button>`).join("");
+      execHtml = kans.map((o, k) => {
+        const chipsHtml = callChipsForKan(o).map((c) => callChipHtml(c.code, c.pool)).join("");
+        return `<button class="btn small call-btn kan-btn" data-kan="${k}"><span class="call-type-tag">カン</span><span class="call-chips">${chipsHtml}</span></button>`;
+      }).join("");
     }
     const execRowHtml = callSelect
       ? `<div class="call-exec-row">${execHtml}<button class="btn small indigo call-cancel" data-callcancel="1">✕ やめる</button></div>`
@@ -714,15 +828,24 @@
   function toTitle() { screen = "title"; sel = null; callSelect = null; itemPanelId = null; pendingShinzuu = null; pendingSwapItemId = null; pendingDropIdx = null; pendingConfirm = null; render(); }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-kan],[data-callsel],[data-callcancel],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helptab],[data-helpclose],[data-acc],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm]");
+    const t = e.target.closest("[data-zone],[data-act],[data-buy],[data-release],[data-cancelswap],[data-tea],[data-kanro],[data-furoshiki],[data-suzu],[data-call],[data-kan],[data-callsel],[data-callcancel],[data-reroll],[data-next],[data-metabuy],[data-startrun],[data-totitle],[data-home],[data-mode],[data-help],[data-helptab],[data-helpclose],[data-acc],[data-yokaipanel],[data-unlockyokai],[data-toshop],[data-titletab],[data-itempanel],[data-usei],[data-discardi],[data-cancelshinzuu],[data-totile],[data-buyitem],[data-releaseitemshop],[data-cancelswapitem],[data-drop],[data-skipdrop],[data-releaseitem],[data-canceldrop],[data-confirmyes],[data-confirmno],[data-toggleconfirm],[data-settings],[data-settingsclose],[data-giveupstart],[data-giveupconfirm],[data-giveupcancel],[data-resetstart],[data-resetconfirm],[data-resetcancel]");
     if (!t) return;
     // 確認ダイアログの応答（他の操作より優先）
     if (t.dataset.confirmno) { pendingConfirm = null; renderConfirm(); return; }
     if (t.dataset.confirmyes) { const cb = pendingConfirm && pendingConfirm.onYes; pendingConfirm = null; renderConfirm(); if (cb) cb(); return; }
     // 確認ダイアログ表示中は背後の操作を無効化（誤タップ防止）
     if (pendingConfirm) return;
+    // ---- ⚙ 設定オーバーレイ(D67) ----
+    if (t.dataset.settings) { settingsOpen = true; settingsGiveupConfirm = false; settingsResetStep = 0; renderSettings(); return; } // 開くたびに確認ステップの途中状態をリセット
+    if (t.dataset.settingsclose) { settingsOpen = false; settingsGiveupConfirm = false; settingsResetStep = 0; renderSettings(); return; }
+    if (t.dataset.giveupstart) { settingsGiveupConfirm = true; renderSettings(); return; }
+    if (t.dataset.giveupcancel) { settingsGiveupConfirm = false; renderSettings(); return; }
+    if (t.dataset.giveupconfirm) { giveUpRun(); return; }
+    if (t.dataset.resetstart) { settingsResetStep = 1; renderSettings(); return; }
+    if (t.dataset.resetcancel) { settingsResetStep = 0; renderSettings(); return; }
+    if (t.dataset.resetconfirm) { resetMetaData(); return; }
     if (t.dataset.titletab) { titleTab = t.dataset.titletab; renderTitle(); return; } // ★D41 タイトルのタブ切替
-    if (t.dataset.toggleconfirm) { meta.confirmActions = !meta.confirmActions; saveMeta(); renderTitle(); return; } // 確認画面ON/OFF（慣れた人向け）
+    if (t.dataset.toggleconfirm) { meta.confirmActions = !meta.confirmActions; saveMeta(); if (settingsOpen) renderSettings(); else renderTitle(); return; } // 確認画面ON/OFF（慣れた人向け・設定パネル内）
     if (t.dataset.toshop) { pendingDropIdx = null; callSelect = null; game.enterShop(); setMessage(""); render(); return; } // ★D38 クリア画面→妖怪の市
     if (t.dataset.yokaipanel) { yokaiPanelId = (yokaiPanelId === t.dataset.yokaipanel) ? null : t.dataset.yokaipanel; renderYokai(); return; }
     if (t.dataset.itempanel != null) { const i = parseInt(t.dataset.itempanel, 10); itemPanelId = (itemPanelId === i) ? null : i; pendingShinzuu = null; renderItems(); return; }
@@ -961,4 +1084,5 @@
 
   render();
   renderHelp();
+  renderSettings();
 })();
