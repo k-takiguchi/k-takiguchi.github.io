@@ -391,12 +391,12 @@
     const yokaiOfferHtml = (id) => {
       const y = MJ.YOKAI[id]; const price = game.yokaiPrice(id); const afford = game.koban >= price;
       const disc = price < y.price ? `<span class="disc">${y.price}</span>` : "";
-      const label = slotsFull ? "入替" : `${disc}${price}小判`;
+      const label = slotsFull ? `入替 ${disc}${price}小判` : `${disc}${price}小判`; // 入替も購入と同額を消費するため価格を明示
       return `<div class="offer"><span class="face">${y.face}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)}</div><div class="d">${y.desc}</div></div><button class="btn small ${slotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buy="${id}">${label}</button></div>`;
     };
     const itemOfferHtml = (o) => {
       const it = MJ.ITEMS[o.id]; const afford = game.koban >= o.price;
-      const label = itemSlotsFull ? "入替" : `${o.price}小判`;
+      const label = itemSlotsFull ? `入替 ${o.price}小判` : `${o.price}小判`;
       return `<div class="offer item-offer"><span class="face">${it.face}</span><div class="info"><div class="n">${it.name} ${"★".repeat(it.rarity)} <span class="kind-tag">道具</span></div><div class="d">${it.desc}</div></div><button class="btn small ${itemSlotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buyitem="${o.id}">${label}</button></div>`;
     };
     const shopOrder = shop.order || [...shop.yokai.map((id) => ({ kind: "yokai", id })), ...(shop.items || []).map((o) => ({ kind: "item", id: o.id }))];
