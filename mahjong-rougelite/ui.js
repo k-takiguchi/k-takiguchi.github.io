@@ -137,7 +137,8 @@
       const btn = owned
         ? `<span class="meta-max">解放済</span>`
         : `<button class="btn small gold" ${afford ? "" : "disabled"} data-unlockyokai="${id}">🏅${y.unlock.cost}</button>`;
-      return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div></div>${btn}</div>`;
+      const evo = y.evolvesFrom ? `<div class="d evo-note">⤴ ${MJ.YOKAI[y.evolvesFrom].name}を持っていると市に出現（進化・上書き）</div>` : "";
+      return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div>${evo}</div>${btn}</div>`;
     }).join("");
     // ★D41 タブ化: 茶屋/図鑑を切り替えて表示（タイトルが縦に長くなりテストプレイの妨げになっていた）
     const chaya = `<div class="shop-items">${rows}</div>
@@ -391,8 +392,11 @@
     const yokaiOfferHtml = (id) => {
       const y = MJ.YOKAI[id]; const price = game.yokaiPrice(id); const afford = game.koban >= price;
       const disc = price < y.price ? `<span class="disc">${y.price}</span>` : "";
-      const label = slotsFull ? `入替 ${disc}${price}小判` : `${disc}${price}小判`; // 入替も購入と同額を消費するため価格を明示
-      return `<div class="offer"><span class="face">${y.face}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)}</div><div class="d">${y.desc}</div></div><button class="btn small ${slotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buy="${id}">${label}</button></div>`;
+      // ★D58 進化(A25): 進化元を上書きするため枠を消費しない＝枠フルでも「LvUP」で直接購入
+      const isEvo = !!y.evolvesFrom && game.yokai.includes(y.evolvesFrom);
+      const evoNote = isEvo ? `<div class="d evo-note">⤴ ${MJ.YOKAI[y.evolvesFrom].face}${MJ.YOKAI[y.evolvesFrom].name} から進化（上書き）</div>` : "";
+      const label = isEvo ? `⤴ LvUP ${disc}${price}小判` : (slotsFull ? `入替 ${disc}${price}小判` : `${disc}${price}小判`); // 入替も購入と同額を消費するため価格を明示
+      return `<div class="offer"><span class="face">${y.face}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)}</div><div class="d">${y.desc}</div>${evoNote}</div><button class="btn small ${isEvo || slotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buy="${id}">${label}</button></div>`;
     };
     const itemOfferHtml = (o) => {
       const it = MJ.ITEMS[o.id]; const afford = game.koban >= o.price;
@@ -588,8 +592,12 @@
     if (t.dataset.act === "autowin") { game.arrangeWin(); setMessage("🀄 最高得点のアガリ形に組みました"); render(); return; }
     if (t.dataset.act === "agari") return doAgari();
     if (t.dataset.buy) {
-      if (game.yokai.length >= game.yokaiSlots) { pendingSwapId = t.dataset.buy; render(); return; }
-      const r = game.buyYokai(t.dataset.buy); setMessage(r.ok ? "妖怪を仲間にした！" : (r.message || "")); render(); return;
+      // ★D58 進化(A25)は下位を上書きするため入替フロー不要（枠フルでも直接購入）
+      const isEvo = MJ.YOKAI[t.dataset.buy] && MJ.YOKAI[t.dataset.buy].evolvesFrom && game.yokai.includes(MJ.YOKAI[t.dataset.buy].evolvesFrom);
+      if (!isEvo && game.yokai.length >= game.yokaiSlots) { pendingSwapId = t.dataset.buy; render(); return; }
+      const r = game.buyYokai(t.dataset.buy);
+      setMessage(r.ok ? (r.evolved ? `⤴ ${MJ.YOKAI[r.released].name}が${MJ.YOKAI[t.dataset.buy].name}に進化した！` : "妖怪を仲間にした！") : (r.message || ""));
+      render(); return;
     }
     if (t.dataset.release) {
       const r = game.swapYokai(t.dataset.release, pendingSwapId);

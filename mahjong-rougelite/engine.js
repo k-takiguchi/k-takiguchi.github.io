@@ -62,18 +62,18 @@
     onibi:        { name: "鬼火", face: "🔥", rarity: 2, price: 6, desc: "字牌の刻子1つにつき +1翻", unlock: { cost: 10, minStage: 4 } },
     nureonna:     { name: "濡女", face: "🐍", rarity: 2, price: 6, desc: "刻子の無いアガリ(全て順子)で +2翻", unlock: { cost: 10, minStage: 4 } },
     yosuzume:     { name: "夜雀", face: "🐦", rarity: 2, price: 6, desc: "鳴いている手のアガリで +2翻", unlock: { cost: 15, minStage: 5 } },
-    ungaikyo:     { name: "雲外鏡", face: "🪞", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +3翻", unlock: { cost: 20, minStage: 6 } },
+    ungaikyo:     { name: "雲外鏡", face: "🪞", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +4翻", unlock: { cost: 20, minStage: 6 }, evolvesFrom: "azukiarai" }, // ★D58 小豆洗いの進化先(+3→+4に強化)
     shutendoji:   { name: "酒呑童子", face: "🍶", rarity: 3, price: 8, desc: "5翻以上のアガリで さらに+2翻", unlock: { cost: 25, minStage: 6 } },
     umibozu:      { name: "海坊主", face: "🌊", rarity: 3, price: 8, desc: "清一色のアガリで さらに+3翻", unlock: { cost: 55, minStage: 8 } },
-    hakutaku:     { name: "白澤", face: "🐂", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 65, minStage: 9 } },
+    hakutaku:     { name: "白澤", face: "🐂", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 65, minStage: 9 }, evolvesFrom: "shutendoji" }, // ★D58 酒呑童子の進化先(D56で勝率+25ptの突出→下位所持を出現条件にする構造的ナーフ)
     ryujin:       { name: "龍神", face: "🐲", rarity: 3, price: 10, desc: "13翻以上のアガリで さらに+4翻", unlock: { cost: 80, minStage: 10 } },
     // ---- ★D31 追加解放妖怪（2体）----
     tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 20, minStage: 7 } },
-    tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "アガリの点数 ×1.5", unlock: { cost: 75, minStage: 12 } }, // ★D54 狐火と効果交換(旧:役満時×1.5=狐火の完全下位互換だった)。無条件×1.5は深部解放のご褒美として妥当
+    tamamonomae: { name: "玉藻前", face: "✨", rarity: 3, price: 10, desc: "アガリの点数 ×1.5", unlock: { cost: 75, minStage: 12 }, evolvesFrom: "kitsunebi" }, // ★D54 狐火と効果交換→D58 狐火の進化先(キツネ繋がり)。無条件×1.5は深部のご褒美
     // ---- ★D32 追加解放妖怪（6体: システム/サポート/経済/役満支援）----
     doraneko:     { name: "ドラ猫", face: "🐱", rarity: 3, price: 8, desc: "毎ラウンド、ランダムな牌1種がドラになる（手の中の1枚につき+1翻）", unlock: { cost: 20, minStage: 6 } },
     yakousan:     { name: "夜行さん", face: "👺", rarity: 2, price: 6, desc: "么九牌だけのアガリ(混老頭)で +3翻", unlock: { cost: 15, minStage: 7 } },
-    itsumade:     { name: "以津真天", face: "🦅", rarity: 2, price: 7, desc: "ステージ間のツモ回復 +3", unlock: { cost: 55, minStage: 8 }, flags: { recovery: 3 } },
+    itsumade:     { name: "以津真天", face: "🦅", rarity: 2, price: 7, desc: "ステージ間のツモ回復 +4", unlock: { cost: 55, minStage: 8 }, flags: { recovery: 4 }, evolvesFrom: "yukionna" }, // ★D58 雪女の進化先(+3→+4に強化)
     takarabune:   { name: "宝船", face: "🚢", rarity: 3, price: 8, desc: "アガリ時、所持小判1枚につき +100点", unlock: { cost: 55, minStage: 9 } },
     fuujin:       { name: "風神", face: "🌀", rarity: 3, price: 9, desc: "風牌の刻子1つにつき +2翻", unlock: { cost: 55, minStage: 10 } },
     kudan:        { name: "件", face: "🐄", rarity: 3, price: 9, desc: "役満テンパイ中、ツモに待ち牌を確定で1枚混ぜる（各ラウンド1回）", unlock: { cost: 65, minStage: 10 }, flags: { yakumanDraw: 1 } },
@@ -237,7 +237,7 @@
         }
         if (owned.includes("nureonna") && res.type === "standard" && tripCount === 0) { han += 2; note("濡女+2翻"); }
         if (owned.includes("yosuzume") && (st.openMelds || []).length > 0) { han += 2; note("夜雀+2翻"); }
-        if (owned.includes("ungaikyo") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 3; note("雲外鏡+3翻"); }
+        if (owned.includes("ungaikyo") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 4; note("雲外鏡+4翻"); } // ★D58 進化先として+3→+4
         if (owned.includes("umibozu") && hasYaku("清一色")) { han += 3; note("海坊主+3翻"); }
         if (owned.includes("hakutaku")) { han += 2; note("白澤+2翻"); }
         // --- ★D31 追加妖怪の翻加算 ---
@@ -875,6 +875,9 @@
     // ★D30: 解放妖怪の出現条件 = 図鑑で解放済み かつ 次のステージ番号 >= minStage
     // （ショップ中の roundIndex は「今クリアしたステージ」なので、次ステージ番号 = roundIndex + 2）
     _yokaiAvailable(id) {
+      // ★D58 進化妖怪(A25): 進化元を所持していないとショップに出現しない
+      const ev = YOKAI[id].evolvesFrom;
+      if (ev && !this.yokai.includes(ev)) return false;
       const u = YOKAI[id].unlock;
       if (!u) return true; // 基本妖怪は常時
       const unlocked = ((this.meta && this.meta.unlockedYokai) || []).includes(id);
@@ -956,6 +959,18 @@
     }
     buyYokai(id) {
       if (this.phase !== "shop" || !this.shop.yokai.includes(id)) return { ok: false, message: "在庫にありません" };
+      // ★D58 進化(A25): 進化元を同じ枠位置で上書きする＝枠を消費しないため枠フルでも購入可
+      const ev = YOKAI[id].evolvesFrom;
+      if (ev) {
+        const idx = this.yokai.indexOf(ev);
+        if (idx < 0) return { ok: false, message: `進化元(${YOKAI[ev].name})が必要です` };
+        const price = this.yokaiPrice(id);
+        if (this.koban < price) return { ok: false, message: "小判が足りません" };
+        this.koban -= price;
+        this.yokai[idx] = id;
+        this.shop.yokai = this.shop.yokai.filter((x) => x !== id);
+        return { ok: true, evolved: true, released: ev };
+      }
       if (this.yokai.length >= this.yokaiSlots) return { ok: false, message: "妖怪枠がいっぱいです（入れ替えできます）", slotsFull: true };
       const price = this.yokaiPrice(id);
       if (this.koban < price) return { ok: false, message: "小判が足りません" };

@@ -290,3 +290,6 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ★D48 ショップで消耗品を妖怪と同じ枠に混在表示する時の識別 */
 .offer.item-offer .kind-tag { font-size: 10px; background: #a1701f; color: #fff; border-radius: 4px; padding: 0 4px; margin-left: 2px; vertical-align: middle; }
+
+/* ★D58 進化(A25): ショップ/図鑑の進化元注記 */
+.evo-note { color: #7c4dbe; font-weight: 700; font-size: 11px; margin-top: 2px; }
