@@ -28,12 +28,12 @@
     yukionna:     { name: "雪女", face: "⛄", rarity: 2, price: 6, desc: "ステージ間のツモ回復 +2", flags: { recovery: 2 } },
     bakedanuki:   { name: "化け狸", face: "🦝", rarity: 3, price: 8, desc: "アガリの翻を最低2翻に" },
     kitsunebi:    { name: "狐火", face: "🦊", rarity: 3, price: 8, desc: "断么九のアガリで 点数×1.5" }, // ★D54で玉藻前と効果交換→D55: 5翻条件はSt8まで「5翻=目標8000到達済み」で過剰＝購入動機が無限専用というFBにより断么九条件へ再改定
-    nurikabe:     { name: "ぬりかべ", face: "🧱", rarity: 2, price: 6, desc: "1ランに1度、敗北を無効化(ツモ回復)", flags: { lossNegate: 1 } },
-    chochin:      { name: "提灯お化け", face: "🏮", rarity: 1, price: 4, desc: "ショップの無料リロール +3回/訪問", flags: { freeRerollLimit: 3 } },
+    nurikabe:     { name: "ぬりかべ", face: "🧱", rarity: 2, price: 6, desc: "挑戦1回につき1度、敗北を無効化(ツモ回復)", flags: { lossNegate: 1 } },
+    chochin:      { name: "提灯お化け", face: "🏮", rarity: 1, price: 4, desc: "市の無料引き直し +3回/訪問", flags: { freeRerollLimit: 3 } },
     mitsumekozo:  { name: "三つ目小僧", face: "👁️", rarity: 1, price: 4, desc: "次のツモを先読み", flags: { peek: 3 } },
     azukiarai:    { name: "小豆洗い", face: "🫘", rarity: 1, price: 4, desc: "七対子で +2翻" },
-    kamaitachi:   { name: "鎌鼬", face: "🌪️", rarity: 2, price: 6, desc: "この道中のアガリ数×300点 を加点" },
-    nurarihyon:   { name: "ぬらりひょん", face: "👴", rarity: 3, price: 8, desc: "アガるたび +200点(ラン中累積)" },
+    kamaitachi:   { name: "鎌鼬", face: "🌪️", rarity: 2, price: 6, desc: "このステージのアガリ数×300点 を加点" },
+    nurarihyon:   { name: "ぬらりひょん", face: "👴", rarity: 3, price: 8, desc: "アガるたび +200点(挑戦中累積)" },
     bakeneko:     { name: "化け猫", face: "🐈‍⬛", rarity: 3, price: 8, desc: "刻子3つ以上のアガリで +2翻" },
     karakasa:     { name: "唐傘小僧", face: "☂️", rarity: 1, price: 4, desc: "翻が奇数なら +1翻" },
     fukunokami:   { name: "福の神", face: "🧧", rarity: 2, price: 6, desc: "所持小判10ごとに +500点" },
@@ -42,7 +42,7 @@
     // ---- サポート/ユーティリティ系（三つ目小僧の仲間） ----
     hyakume:      { name: "百目", face: "👀", rarity: 2, price: 7, desc: "ツモが6枚になる（毎回1枚多く選べる）", flags: { tsumoSize: 1 } },
     amefurikozo:  { name: "雨降小僧", face: "☔", rarity: 1, price: 4, desc: "ツモを2回引くごとに 小判+1", flags: { kobanPer2Draws: 1 } }, // ★D54 毎回+1はラン全体+40相当で他の経済★1を圧倒→半減
-    wanyudo:      { name: "輪入道", face: "🎡", rarity: 2, price: 6, desc: "ショップの妖怪が2小判引き", flags: { shopDiscount: 2 } },
+    wanyudo:      { name: "輪入道", face: "🎡", rarity: 2, price: 6, desc: "市の妖怪が2小判引き", flags: { shopDiscount: 2 } },
     sunekosuri:   { name: "すねこすり", face: "🐕", rarity: 1, price: 5, desc: "各ラウンド1回 手牌を引き直せる", flags: { mulligan: 1 } },
     tenome:       { name: "手の目", face: "✋", rarity: 1, price: 5, desc: "手が進むツモ牌を光らせる", flags: { highlight: true } },
     miagenyudo:   { name: "見上げ入道", face: "👹", rarity: 3, price: 8, desc: "各ラウンド1回 テンパイ中のツモに待ち牌を確定で1枚混ぜる", flags: { guaranteedDraw: 1 } },
@@ -147,7 +147,7 @@
     hamaya:     { name: "破魔矢", face: "🏹", rarity: 3, price: 9, desc: "このボス戦のギミックを無効化", category: "A1対策", usable: "round" },
     juzu:       { name: "数珠", face: "📿", rarity: 3, price: 8, desc: "このボス戦の目標点-20%", category: "敵弱体", usable: "round" },
     kozuchi:    { name: "打ち出の小槌", face: "🔨", rarity: 1, price: 5, desc: "小判+10(即時)", category: "経済", usable: "anytime" },
-    yobimizu:   { name: "呼び水", face: "💧", rarity: 1, price: 4, desc: "ショップを1回無料リロール（★2以上を1枠確定）", category: "ショップ", usable: "shop" }, // ★D54 招き鈴の追加で単純リロールは下位互換化→質のリロールに。D55: 全枠★2確定は強すぎ→1枠のみ確定
+    yobimizu:   { name: "呼び水", face: "💧", rarity: 1, price: 4, desc: "市を1回無料引き直し（★2以上を1枠確定）", category: "妖怪の市", usable: "shop" }, // ★D54 招き鈴の追加で単純リロールは下位互換化→質のリロールに。D55: 全枠★2確定は強すぎ→1枠のみ確定
   };
   const ITEM_IDS = Object.keys(ITEMS);
 
@@ -161,8 +161,8 @@
     yunomi:      { name: "湯呑み",   face: "🍵", desc: "ツモの上限 +1 /Lv",   max: 2, costs: [100, 160] },
     fukubukuro:  { name: "福袋",     face: "🎁", desc: "開始時にランダムな道具1つ", max: 1, costs: [120] },
     slot_plus:   { name: "妖怪の絆", face: "🤝", desc: "妖怪枠 +1 /Lv",       max: 2, costs: [300, 500], late: true },
-    item_slot:   { name: "道具袋",   face: "👝", desc: "消耗品枠 +1 /Lv",     max: 2, costs: [300, 500], late: true },
-    shop_size:   { name: "賑わう市", face: "🏮", desc: "ショップの妖怪 +1",    max: 1, costs: [350], late: true },
+    item_slot:   { name: "道具袋",   face: "👝", desc: "道具枠 +1 /Lv",     max: 2, costs: [300, 500], late: true },
+    shop_size:   { name: "賑わう市", face: "🏮", desc: "市の妖怪 +1",    max: 1, costs: [350], late: true },
     lucky_start: { name: "はじめの友", face: "🦊", desc: "開始時にランダムな妖怪1体", max: 1, costs: [400], late: true },
   };
   const META_IDS = Object.keys(META_UPGRADES);
@@ -1042,7 +1042,7 @@
       const ev = YOKAI[id].evolvesFrom;
       if (ev) {
         const idx = this.yokai.indexOf(ev);
-        if (idx < 0) return { ok: false, message: `進化元(${YOKAI[ev].name})が必要です` };
+        if (idx < 0) return { ok: false, message: `変化元(${YOKAI[ev].name})が必要です` };
         const price = this.yokaiPrice(id);
         if (this.koban < price) return { ok: false, message: "小判が足りません" };
         this.koban -= price;
@@ -1074,7 +1074,7 @@
     // 購入。満杯時は{ok:false, full:true}を返し購入せず、UI側で入替/破棄フローへ(§2)。
     buyItem(id) {
       if (this.phase !== "shop" || !this.shop.items || !this.shop.items.some((x) => x.id === id)) return { ok: false, message: "在庫にありません" };
-      if (this.items.length >= this.itemSlots) return { ok: false, full: true, message: "アイテム枠がいっぱいです（入れ替えできます）" };
+      if (this.items.length >= this.itemSlots) return { ok: false, full: true, message: "道具枠がいっぱいです（入れ替えできます）" };
       const price = ITEMS[id].price;
       if (this.koban < price) return { ok: false, message: "小判が足りません" };
       this.koban -= price;

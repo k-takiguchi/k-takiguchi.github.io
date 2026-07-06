@@ -89,7 +89,7 @@
            </div>`
         : `<div class="settings-item">
              <div class="settings-item-head">
-               <span class="settings-item-title">🏳 ランをあきらめる</span>
+               <span class="settings-item-title">🏳 挑戦をあきらめる</span>
                <button class="btn small indigo" data-giveupstart="1">あきらめる</button>
              </div>
            </div>`
@@ -252,9 +252,9 @@
         <li>テンパイすると待ち牌・山の残り枚数・アガった場合の点数が自動表示されます。</li>
       </ul>`) +
       accItem("g-hp", "💧 ツモ回数＝HP（最重要）", `<ul>
-        <li>ツモ回数は<b>ラン全体で持ち越されます</b>。開始は<b>15回</b>で、<b>ステージ間は+3しか回復しません</b>（<b>ボス撃破後は+6</b>）。上限は開始値の15です。</li>
+        <li>ツモ回数は<b>挑戦全体で持ち越されます</b>。開始は<b>15回</b>で、<b>ステージ間は+3しか回復しません</b>（<b>ボス撃破後は+6</b>）。上限は開始値の15です。</li>
         <li>0になったとき、手牌とツモを組み替えてもアガれない場合は<b>ゲームオーバー</b>になります（最後のツモも判定に含みます）。</li>
-        <li>ショップの🍵お茶(+3回復・買うたび値上がり)と✨甘露(全回復・レア入荷)で延命できます。</li>
+        <li>市の🍵お茶(+3回復・買うたび値上がり)と✨甘露(全回復・レア入荷)で延命できます。</li>
         <li>つまり<b>速くアガるほど残りツモ＝体力が温存されます</b>。</li>
       </ul>`) +
       accItem("g-naki", "🗣 鳴き（ポン/チー）＝ツモの節約", `<ul>
@@ -277,16 +277,16 @@
         <li>2戦ごとに東場→南場→西場→北場と巡ります（画面上部にバッジで表示されます）。</li>
         <li>役牌は<b>三元牌と「場風」のみ</b>です。<b>場風の刻子は2翻</b>になります。場風以外の風（客風）は役なしです。</li>
       </ul>`) +
-      accItem("g-yokai", "👻 妖怪とショップ", `<ul>
+      accItem("g-yokai", "👻 妖怪と市", `<ul>
         <li>ステージをクリアすると、報酬として<b>小判</b>がもらえます。</li>
         <li>ステージクリアごとに「妖怪の市」が開き、小判で妖怪や道具などを買うことができます。</li>
         <li>妖怪の装備枠は5です。枠が埋まっていても<b>入れ替え購入</b>できます。</li>
-        <li>一部の妖怪には<b>進化（⤴LvUP）</b>があり、進化元を持っていると市に上位版が出現します。購入すると進化元を上書きして強化されます。</li>
-        <li>市の品ぞろえは<b>リロール（引き直し）</b>できます。<b>ラン中3回まで無料</b>で、それ以降は1小判かかります。</li>
+        <li>一部の妖怪には<b>変化（へんげ）</b>があり、変化元を持っていると市に上位版が出現します。購入すると変化元を上書きして強化されます。</li>
+        <li>市の品ぞろえは<b>引き直し</b>できます。<b>挑戦1回につき3回まで無料</b>で、それ以降は1小判かかります。</li>
       </ul>`) +
       accItem("g-magatama", "💠 勾玉と妖怪茶屋・図鑑", `<ul>
-        <li>ラン終了時（負けても）<b>勾玉</b>を獲得します → タイトルの「🏯妖怪茶屋」タブで恒久強化が買えます。何度も挑戦して強くしていきましょう。</li>
-        <li>タイトルの「📖妖怪図鑑」タブでは、勾玉を払って妖怪を解放すると、その妖怪がショップに出現するようになります。</li>
+        <li>挑戦が終わると（負けても）<b>勾玉</b>を獲得します → タイトルの「🏯妖怪茶屋」タブで恒久強化が買えます。何度も挑戦して強くしていきましょう。</li>
+        <li>タイトルの「📖妖怪図鑑」タブでは、勾玉を払って妖怪を解放すると、その妖怪が妖怪の市に出現するようになります。</li>
       </ul>`) +
       accItem("g-mode", "🎮 モード", `<ul>
         <li><b>百鬼夜行</b>は、全9戦（3戦ごとにボス）を制覇すると勝利になります。</li>
@@ -369,7 +369,7 @@
       const btn = owned
         ? `<span class="meta-max">解放済</span>`
         : `<button class="btn small gold" ${afford ? "" : "disabled"} data-unlockyokai="${id}">💠${y.unlock.cost}</button>`;
-      const evo = y.evolvesFrom ? `<div class="d evo-note">⤴ ${MJ.YOKAI[y.evolvesFrom].name}を持っていると市に出現（進化・上書き）</div>` : "";
+      const evo = y.evolvesFrom ? `<div class="d evo-note">⤴ ${MJ.YOKAI[y.evolvesFrom].name}を持っていると市に出現（変化・上書き）</div>` : "";
       return `<div class="offer${owned ? "" : " locked-yokai"}"><span class="face">${owned ? y.face : "❓"}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)} <span class="stage-gate">ステージ${y.unlock.minStage}〜</span></div><div class="d">${y.desc}</div>${evo}</div>${btn}</div>`;
     }).join("");
     // ★D41 タブ化: 茶屋/図鑑を切り替えて表示（タイトルが縦に長くなりテストプレイの妨げになっていた）
@@ -447,7 +447,7 @@
     // ★妖怪をタップすると「その1体」の効果を表示（hoverの無いスマホ対応）。同じ妖怪を再タップで閉じる。
     if (yokaiPanelId && !game.yokai.includes(yokaiPanelId)) yokaiPanelId = null; // 手放した妖怪の表示を残さない
     bar.innerHTML = (game.yokai.length === 0
-      ? `<span class="yokai-empty">まだ妖怪がいません（ショップで仲間に）</span>`
+      ? `<span class="yokai-empty">まだ妖怪がいません（妖怪の市で仲間に）</span>`
       // ★A1 v3 眠り(nemuri): 休眠中の妖怪を薄く＋💤表示（game.sleepingYokai参照）
       : game.yokai.map((id) => {
           const y = MJ.YOKAI[id]; const selCls = id === yokaiPanelId ? " selected" : "";
@@ -478,7 +478,7 @@
     const bar = $("item-bar");
     if (itemPanelId != null && itemPanelId >= game.items.length) itemPanelId = null; // 使用/破棄済みなら閉じる
     bar.innerHTML = (game.items.length === 0
-      ? `<span class="item-empty">まだ消耗品がありません</span>`
+      ? `<span class="item-empty">まだ道具がありません</span>`
       : game.items.map((id, i) => {
           const it = MJ.ITEMS[id]; const selCls = i === itemPanelId ? " selected" : "";
           return `<div class="item-chip${selCls}" data-itempanel="${i}" title="${it.desc}"><span class="rar">${"★".repeat(it.rarity)}</span><span class="face">${it.face}</span><span class="iname">${it.name}</span></div>`;
@@ -704,7 +704,7 @@
       }).join("");
       $("shop").innerHTML =
         `<h2>🏮 妖怪の市 🏮</h2>
-         <div class="swap-note">消耗品の枠がいっぱいです。<b>${target.face} ${target.name}</b> と入れ替えるアイテムを選んでください</div>
+         <div class="swap-note">道具の枠がいっぱいです。<b>${target.face} ${target.name}</b> と入れ替える道具を選んでください</div>
          <div class="shop-items">${releaseHtml}</div>
          <div class="shop-actions"><button class="btn small indigo" data-cancelswapitem="1">← やめる</button></div>`;
       return;
@@ -729,8 +729,8 @@
       const disc = price < y.price ? `<span class="disc">${y.price}</span>` : "";
       // ★D58 進化(A25): 進化元を上書きするため枠を消費しない＝枠フルでも「LvUP」で直接購入
       const isEvo = !!y.evolvesFrom && game.yokai.includes(y.evolvesFrom);
-      const evoNote = isEvo ? `<div class="d evo-note">⤴ ${MJ.YOKAI[y.evolvesFrom].face}${MJ.YOKAI[y.evolvesFrom].name} から進化（上書き）</div>` : "";
-      const label = isEvo ? `⤴ LvUP ${disc}${price}小判` : (slotsFull ? `入替 ${disc}${price}小判` : `${disc}${price}小判`); // 入替も購入と同額を消費するため価格を明示
+      const evoNote = isEvo ? `<div class="d evo-note">⤴ ${MJ.YOKAI[y.evolvesFrom].face}${MJ.YOKAI[y.evolvesFrom].name} から変化（上書き）</div>` : "";
+      const label = isEvo ? `⤴ 変化 ${disc}${price}小判` : (slotsFull ? `入替 ${disc}${price}小判` : `${disc}${price}小判`); // 入替も購入と同額を消費するため価格を明示
       return `<div class="offer"><span class="face">${y.face}</span><div class="info"><div class="n">${y.name} ${"★".repeat(y.rarity)}</div><div class="d">${y.desc}</div>${evoNote}</div><button class="btn small ${isEvo || slotsFull ? "indigo" : "gold"}" ${afford ? "" : "disabled"} data-buy="${id}">${label}</button></div>`;
     };
     const itemOfferHtml = (o) => {
@@ -798,7 +798,7 @@
           const it = MJ.ITEMS[id];
           return `<div class="offer"><span class="face">${it.face}</span><div class="info"><div class="n">${it.name} ${"★".repeat(it.rarity)}</div><div class="d">${it.desc}</div></div><button class="btn small discard" data-releaseitem="${ix}">手放す</button></div>`;
         }).join("");
-        dropHtml = `<div class="drop-choice"><div class="swap-note">消耗品の枠がいっぱいです。<b>${dropDef.face} ${dropDef.name}</b> と入れ替えるアイテムを選んでください</div><div class="shop-items">${releaseHtml}</div><button class="btn small indigo" data-canceldrop="1">← やめる</button></div>`;
+        dropHtml = `<div class="drop-choice"><div class="swap-note">道具の枠がいっぱいです。<b>${dropDef.face} ${dropDef.name}</b> と入れ替える道具を選んでください</div><div class="shop-items">${releaseHtml}</div><button class="btn small indigo" data-canceldrop="1">← やめる</button></div>`;
       } else if (ci.drops && ci.drops.length) {
         const cards = ci.drops.map((id, ix) => {
           const it = MJ.ITEMS[id];
@@ -895,7 +895,7 @@
     }
     if (t.dataset.buyitem) {
       if (game.items.length >= game.itemSlots) { pendingSwapItemId = t.dataset.buyitem; render(); return; }
-      const r = game.buyItem(t.dataset.buyitem); setMessage(r.ok ? "消耗品を手に入れた！" : (r.message || "")); render(); return;
+      const r = game.buyItem(t.dataset.buyitem); setMessage(r.ok ? "道具を手に入れた！" : (r.message || "")); render(); return;
     }
     if (t.dataset.releaseitemshop != null) {
       const ix = parseInt(t.dataset.releaseitemshop, 10);
@@ -953,7 +953,7 @@
       const isEvo = MJ.YOKAI[t.dataset.buy] && MJ.YOKAI[t.dataset.buy].evolvesFrom && game.yokai.includes(MJ.YOKAI[t.dataset.buy].evolvesFrom);
       if (!isEvo && game.yokai.length >= game.yokaiSlots) { pendingSwapId = t.dataset.buy; render(); return; }
       const r = game.buyYokai(t.dataset.buy);
-      setMessage(r.ok ? (r.evolved ? `⤴ ${MJ.YOKAI[r.released].name}が${MJ.YOKAI[t.dataset.buy].name}に進化した！` : "妖怪を仲間にした！") : (r.message || ""));
+      setMessage(r.ok ? (r.evolved ? `⤴ ${MJ.YOKAI[r.released].name}が${MJ.YOKAI[t.dataset.buy].name}に変化した！` : "妖怪を仲間にした！") : (r.message || ""));
       render(); return;
     }
     if (t.dataset.release) {
