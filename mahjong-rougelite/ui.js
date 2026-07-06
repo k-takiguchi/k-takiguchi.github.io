@@ -291,23 +291,31 @@
       return;
     }
     const info = game.agariInfo();
+    // 待ち牌リストの共通描画（残枚数＋アガった場合の点数。プールに来ている待ちは強調）
+    // ★A1 v3 のっぺらぼう(nopperabou): waitCountsが空になり残数countがnull/undefinedになる→「残?」表示
+    const waitListHtml = (previews) => {
+      const inPool = new Set(game.tsumo.map((c) => H.codeToIndex(c)));
+      return previews.map((p) => {
+        const countLabel = p.count == null ? "残?" : `残${p.count}`;
+        const nowCls = inPool.has(p.tile) ? " now" : "";
+        return p.yakuless
+          ? `<span class="wait yakuless${nowCls}">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">役なし</span></span>`
+          : `<span class="wait${nowCls}">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">${p.limit ? p.limit : p.score.toLocaleString() + "点"}</span></span>`;
+      }).join(" ");
+    };
     if (info.agari) {
       const yaku = info.yaku.map((y) => `${y.name}${y.han}翻`).join("・");
       const limitCls = info.limit ? " limit" : "";
-      el.innerHTML = `<div class="agari-banner"><div class="big${limitCls}">🎉 ${MJ.tileLabelCode(info.winTile)} でアガリ！ ${info.score.toLocaleString()}点</div><div class="calc">${hanFuLabel(info)}</div><div class="detail">${yaku}</div></div>`;
+      // ★D62: アガリ可能時も全ての待ちと点数を併記（別の待ちで高打点を狙う判断材料。今アガれる待ちは緑で強調）
+      const previews = game.waitPreviews();
+      const waitsHtml = previews.length > 1 ? `<div class="agari-waits">待ち: ${waitListHtml(previews)}</div>` : "";
+      el.innerHTML = `<div class="agari-banner"><div class="big${limitCls}">🎉 ${MJ.tileLabelCode(info.winTile)} でアガリ！ ${info.score.toLocaleString()}点</div><div class="calc">${hanFuLabel(info)}</div><div class="detail">${yaku}</div>${waitsHtml}</div>`;
       return;
     }
     // ★D1: 待ち牌ごとの点数プレビュー（残枚数＋アガった場合の点数）
     const previews = game.waitPreviews();
     if (previews.length) {
-      // ★A1 v3 のっぺらぼう(nopperabou): waitCountsが空になり残数countがnull/undefinedになる→「残?」表示
-      const list = previews.map((p) => {
-        const countLabel = p.count == null ? "残?" : `残${p.count}`;
-        return p.yakuless
-          ? `<span class="wait yakuless">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">役なし</span></span>`
-          : `<span class="wait">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">${p.limit ? p.limit : p.score.toLocaleString() + "点"}</span></span>`;
-      }).join(" ");
-      el.innerHTML = `<div class="tenpai">🀄 <b>テンパイ！</b> 待ち: ${list} <br>この牌がツモに来れば「アガリ」</div>`;
+      el.innerHTML = `<div class="tenpai">🀄 <b>テンパイ！</b> 待ち: ${waitListHtml(previews)} <br>この牌がツモに来れば「アガリ」</div>`;
       return;
     }
     const openNote = game.melds.length > 0 ? "<br><span class=\"open-note\">⚠ 鳴きあり: 門前役(ツモ/平和/七対子等)は付きません。役が無いとアガれません</span>" : "";
