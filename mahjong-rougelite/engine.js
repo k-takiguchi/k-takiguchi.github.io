@@ -62,10 +62,10 @@
     onibi:        { name: "鬼火", face: "🔥", rarity: 2, price: 6, desc: "字牌の刻子1つにつき +1翻", unlock: { cost: 10, minStage: 4 } },
     nureonna:     { name: "濡女", face: "🐍", rarity: 2, price: 6, desc: "刻子の無いアガリ(全て順子)で +2翻", unlock: { cost: 10, minStage: 4 } },
     yosuzume:     { name: "夜雀", face: "🐦", rarity: 2, price: 6, desc: "鳴いている手のアガリで +2翻", unlock: { cost: 15, minStage: 5 } },
-    ungaikyo:     { name: "小豆婆", face: "👵", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +4翻", unlock: { cost: 20, minStage: 6 }, evolvesFrom: "azukiarai" }, // ★D58 小豆洗いの進化先(+3→+4に強化)。D59 旧名:雲外鏡→小豆繋がりの伝承名へ改名
-    shutendoji:   { name: "茨木童子", face: "😈", rarity: 3, price: 8, desc: "5翻以上のアガリで さらに+2翻", unlock: { cost: 25, minStage: 6 } }, // ★D59 旧名:酒呑童子。進化先(hakutaku)に名を譲り配下の鬼へ改名（茨木童子→酒呑童子の出世進化）
+    azukibaba:     { name: "小豆婆", face: "👵", rarity: 3, price: 8, desc: "七対子・二盃口のアガリで +4翻", unlock: { cost: 20, minStage: 6 }, evolvesFrom: "azukiarai" }, // ★D58 小豆洗いの進化先(+3→+4に強化)。D59 旧名:雲外鏡(旧id:ungaikyo)→小豆婆へ改名、D60でidも統一
+    ibarakidoji:   { name: "茨木童子", face: "😈", rarity: 3, price: 8, desc: "5翻以上のアガリで さらに+2翻", unlock: { cost: 25, minStage: 6 } }, // ★D59 旧名:酒呑童子(旧id:shutendoji)→茨木童子へ改名。D60でidも ibarakidoji に統一
     umibozu:      { name: "海坊主", face: "🌊", rarity: 3, price: 8, desc: "清一色のアガリで さらに+3翻", unlock: { cost: 55, minStage: 8 } },
-    hakutaku:     { name: "酒呑童子", face: "🍶", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 65, minStage: 9 }, evolvesFrom: "shutendoji" }, // ★D58 進化先(D56で勝率+25ptの突出→下位所持を出現条件にする構造的ナーフ)。D59 旧名:白澤→鬼の頭領・酒呑童子へ改名(茨木童子から進化)
+    shutendoji:     { name: "酒呑童子", face: "🍶", rarity: 3, price: 9, desc: "全てのアガリで +2翻", unlock: { cost: 65, minStage: 9 }, evolvesFrom: "ibarakidoji" }, // ★D58 進化先(D56で勝率+25ptの突出→下位所持を出現条件にする構造的ナーフ)。D59 旧名:白澤(旧id:hakutaku)→酒呑童子へ改名、D60でidも統一
     ryujin:       { name: "龍神", face: "🐲", rarity: 3, price: 10, desc: "13翻以上のアガリで さらに+4翻", unlock: { cost: 80, minStage: 10 } },
     // ---- ★D31 追加解放妖怪（2体）----
     tsukumogami:  { name: "九十九神", face: "📿", rarity: 3, price: 8, desc: "符50以上のアガリで +3翻", unlock: { cost: 20, minStage: 7 } },
@@ -73,7 +73,7 @@
     // ---- ★D32 追加解放妖怪（6体: システム/サポート/経済/役満支援）----
     doraneko:     { name: "ドラ猫", face: "🐱", rarity: 3, price: 8, desc: "毎ラウンド、ランダムな牌1種がドラになる（手の中の1枚につき+1翻）", unlock: { cost: 20, minStage: 6 } },
     yakousan:     { name: "夜行さん", face: "👺", rarity: 2, price: 6, desc: "么九牌だけのアガリ(混老頭)で +3翻", unlock: { cost: 15, minStage: 7 } },
-    itsumade:     { name: "雪女郎", face: "❄️", rarity: 2, price: 7, desc: "ステージ間のツモ回復 +4", unlock: { cost: 55, minStage: 8 }, flags: { recovery: 4 }, evolvesFrom: "yukionna" }, // ★D58 雪女の進化先(+3→+4に強化)。D59 旧名:以津真天→雪女の上位伝承名へ改名
+    yukijoro:     { name: "雪女郎", face: "❄️", rarity: 2, price: 7, desc: "ステージ間のツモ回復 +4", unlock: { cost: 55, minStage: 8 }, flags: { recovery: 4 }, evolvesFrom: "yukionna" }, // ★D58 雪女の進化先(+3→+4に強化)。D59 旧名:以津真天(旧id:itsumade)→雪女郎へ改名、D60でidも統一
     takarabune:   { name: "宝船", face: "🚢", rarity: 3, price: 8, desc: "アガリ時、所持小判1枚につき +100点", unlock: { cost: 55, minStage: 9 } },
     fuujin:       { name: "風神", face: "🌀", rarity: 3, price: 9, desc: "風牌の刻子1つにつき +2翻", unlock: { cost: 55, minStage: 10 } },
     kudan:        { name: "件", face: "🐄", rarity: 3, price: 9, desc: "役満テンパイ中、ツモに待ち牌を確定で1枚混ぜる（各ラウンド1回）", unlock: { cost: 65, minStage: 10 }, flags: { yakumanDraw: 1 } },
@@ -237,9 +237,9 @@
         }
         if (owned.includes("nureonna") && res.type === "standard" && tripCount === 0) { han += 2; note("濡女+2翻"); }
         if (owned.includes("yosuzume") && (st.openMelds || []).length > 0) { han += 2; note("夜雀+2翻"); }
-        if (owned.includes("ungaikyo") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 4; note("小豆婆+4翻"); } // ★D58 進化先として+3→+4
+        if (owned.includes("azukibaba") && (hasYaku("七対子") || hasYaku("二盃口"))) { han += 4; note("小豆婆+4翻"); } // ★D58 進化先として+3→+4
         if (owned.includes("umibozu") && hasYaku("清一色")) { han += 3; note("海坊主+3翻"); }
-        if (owned.includes("hakutaku")) { han += 2; note("酒呑童子+2翻"); }
+        if (owned.includes("shutendoji")) { han += 2; note("酒呑童子+2翻"); }
         // --- ★D31 追加妖怪の翻加算 ---
         if (owned.includes("fuuri") && st.baWind != null) {
           const hasBaWindTrip = counts[st.baWind] >= 3 || (st.openMelds || []).some((m) => m.t === "trip" && m.i === st.baWind);
@@ -287,7 +287,7 @@
         if (owned.includes("bakedanuki") && han < 2) { han = 2; note("化け狸: 最低2翻"); }
         if (owned.includes("karakasa") && (han % 2 === 1)) { han += 1; note("唐傘+1翻"); }
         // --- ★D30 段階発動（他の加算が済んだ後に判定） ---
-        if (owned.includes("shutendoji") && han >= 5) { han += 2; note("茨木童子+2翻"); }
+        if (owned.includes("ibarakidoji") && han >= 5) { han += 2; note("茨木童子+2翻"); }
         if (owned.includes("ryujin") && han >= 13) { han += 4; note("龍神+4翻"); }
       }
       // --- ★A2 絵馬(ema): 消耗品由来の翻加算。妖怪由来ではないため静寂(hanGate)の対象外。 ---

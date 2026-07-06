@@ -12,6 +12,11 @@
   let meta = loadMeta();
   if (meta.endlessUnlocked === undefined) meta.endlessUnlocked = false;
   if (!Array.isArray(meta.unlockedYokai)) meta.unlockedYokai = []; // 旧セーブ互換
+  // ★D60 id改名の移行(D59の改名に合わせidも統一)。mapは同時適用なので旧shutendoji→ibarakidoji/旧hakutaku→shutendojiが混線しない
+  {
+    const RENAMED = { itsumade: "yukijoro", ungaikyo: "azukibaba", shutendoji: "ibarakidoji", hakutaku: "shutendoji" };
+    meta.unlockedYokai = meta.unlockedYokai.map((id) => RENAMED[id] || id);
+  }
   if (meta.confirmActions === undefined) meta.confirmActions = true; // 誤タップ防止の確認画面（既定ON・慣れた人はOFF可）
   let screen = "title";
   let game = null;
