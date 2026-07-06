@@ -50,7 +50,7 @@
     bakezouri:    { name: "化け草鞋", face: "👡", rarity: 1, price: 5, desc: "各ラウンド2回 ツモだけ無料で引き直せる", flags: { freeTsumoReroll: 2 } },
     kanadama:     { name: "金霊", face: "💴", rarity: 2, price: 6, desc: "ラウンドクリアの小判報酬 ×2", flags: { rewardMult: 2 } },
     fukusuke:     { name: "福助", face: "🎎", rarity: 1, price: 4, desc: "ラウンド開始時 小判+3", flags: { kobanOnRound: 3 } },
-    senrigan:     { name: "千里眼", face: "🔮", rarity: 2, price: 6, desc: "待ち牌の残り枚数に、まだ山に出ていない捨て牌分も含めて見える", flags: { countWaits: true } },
+    senrigan:     { name: "千里眼", face: "🔮", rarity: 2, price: 6, desc: "待ち牌が山のどこにあるか見える（あと何ツモで来るか）", flags: { farsight: true } }, // ★D63 作り替え(旧:捨て山込み残数=自明値の導出で実質効果なし・ユーザー指摘)
     // ---- ★D31 追加妖怪（基本3体）----
     fuuri:        { name: "風狸", face: "🍃", rarity: 2, price: 6, desc: "場風の刻子で さらに+2翻" },
     yamabiko:     { name: "山彦", face: "⛰️", rarity: 1, price: 4, desc: "鳴く(ポン/チー)たび 小判+2", flags: { kobanOnCall: 2 } },
@@ -548,12 +548,12 @@
       return { ok: true };
     }
     // 待ち牌が山(wall)にあと何枚あるか {tileIndex: count}。基本機能として常時有効。
-    // 千里眼所持時は、まだ山に無くても捨て山(discardPile)に眠っている分まで見える（上位互換）。
+    // ★D63: 旧・千里眼の「捨て山込み」加算は撤去（山+捨て山=4-可視牌で自明に導ける上、山のみの内訳が
+    // 見えなくなる実質下位互換だったというユーザー指摘）。千里眼はdrawsAwayOf(あと何ツモ)へ作り替え。
     waitCounts() {
       // ★A1 v3 のっぺらぼう(nopperabou): 待ち残数表示を無効化。
       if (this.effectiveGimmick() === "nopperabou") return {};
-      const seeDiscards = yokaiFlag(this.yokai, "countWaits", "or");
-      const pool = seeDiscards ? this.wall.concat(this.discardPile) : this.wall;
+      const pool = this.wall;
       const m = {};
       for (const t of this.handWaits()) {
         let c = 0; for (const code of pool) if (MJHand.codeToIndex(code) === t) c++;
@@ -682,17 +682,29 @@
       if (this.hand.length !== this.expectedConcealed || this.mustDiscard) return [];
       return MJHand.waits(MJHand.handToCounts(this.hand), this.melds.length);
     }
+    // ★D63 千里眼: 指定牌が山の上から数えて何回目の「ツモを引く」で来るか（1=次のツモ）。山に無ければnull。
+    // 山はwall末尾から引く(pop)ため末尾側=上。見上げ入道/件の確定注入は近似的に無視（誤差1ツモ程度）。
+    drawsAwayOf(tile) {
+      const n = this._tsumoCount();
+      for (let i = this.wall.length - 1, k = 0; i >= 0; i--, k++) {
+        if (MJHand.codeToIndex(this.wall[i]) === tile) return Math.floor(k / n) + 1;
+      }
+      return null;
+    }
     // ★D1: テンパイ時、待ち牌ごとに「アガった場合の点数・翻・限度名」をプレビュー
-    // 返り値: [{tile, count, score, han, fu, limit}]（countは山残り枚数、千里眼所持なら捨て山込み）
+    // 返り値: [{tile, count, score, han, fu, limit, drawsAway?}]（countは山残り枚数）
+    // ★D63: 千里眼(farsight)所持時はdrawsAway(あと何ツモで来るか)を付与。のっぺらぼう戦では無効。
     waitPreviews() {
       const waits = this.handWaits();
       if (!waits.length) return [];
       const wc = this.waitCounts();
       const st = this._scoreState();
+      const farsight = yokaiFlag(this.yokai, "farsight", "or") && this.effectiveGimmick() !== "nopperabou";
       return waits.map((t) => {
+        const da = farsight ? this.drawsAwayOf(t) : undefined;
         const r = computeAgari(this.hand.concat([MJHand.indexToCode(t)]), st);
-        if (!r.agari) return { tile: t, count: wc[t], yakuless: true }; // 鳴いた手の役なし形
-        return { tile: t, count: wc[t], score: r.score, han: r.han, fu: r.fu, limit: r.limit };
+        if (!r.agari) return { tile: t, count: wc[t], yakuless: true, drawsAway: da }; // 鳴いた手の役なし形
+        return { tile: t, count: wc[t], score: r.score, han: r.han, fu: r.fu, limit: r.limit, drawsAway: da };
       });
     }
     // ツモのいずれかで手牌側が完成するか（＋最高得点）。鳴き後は13-3n枚+1

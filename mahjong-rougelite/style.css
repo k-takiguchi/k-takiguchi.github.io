@@ -300,3 +300,6 @@ button.btn:disabled { opacity: .4; cursor: not-allowed; }
 /* ★D62 アガリ可能時の待ち一覧＋「今アガれる待ち」の強調 */
 .agari-waits { margin-top: 5px; font-size: 12px; }
 .wait.now { outline: 2px solid #2e9e5b; border-radius: 6px; }
+
+/* ★D63 千里眼: 待ち牌までの距離表示 */
+.wfar { display: block; font-size: 10px; color: #7c4dbe; font-weight: 800; }

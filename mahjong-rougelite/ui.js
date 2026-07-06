@@ -298,9 +298,11 @@
       return previews.map((p) => {
         const countLabel = p.count == null ? "残?" : `残${p.count}`;
         const nowCls = inPool.has(p.tile) ? " now" : "";
+        // ★D63 千里眼: あと何ツモで来るか（1=次のツモ）
+        const far = p.drawsAway != null ? `<span class="wfar">${p.drawsAway === 1 ? "次のツモ" : `あと${p.drawsAway}ツモ`}</span>` : "";
         return p.yakuless
-          ? `<span class="wait yakuless${nowCls}">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">役なし</span></span>`
-          : `<span class="wait${nowCls}">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">${p.limit ? p.limit : p.score.toLocaleString() + "点"}</span></span>`;
+          ? `<span class="wait yakuless${nowCls}">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">役なし</span>${far}</span>`
+          : `<span class="wait${nowCls}">${H.tileLabel(p.tile)}<span class="wcount">${countLabel}</span><span class="wscore">${p.limit ? p.limit : p.score.toLocaleString() + "点"}</span>${far}</span>`;
       }).join(" ");
     };
     if (info.agari) {
